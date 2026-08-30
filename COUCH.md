@@ -66,3 +66,15 @@ holds non-secret settings only (written by the control panel).
   `/api/scout`.
 - JobSpy installed with `--no-deps` + modern numpy/pandas (Python 3.14 has no
   numpy 1.26 wheels); verified working.
+
+## Git layout
+
+Two remotes, two jobs:
+
+- `origin` = upstream GodsScion/Auto_job_applier_linkedIn - source of updates.
+- `lazzi` = this repo (tmurphy24-lab/Lazzi-bot) - where The Couch work lives.
+
+Daily flow: work on the `lazzibot` branch (tracks `lazzi/main`), commit,
+`git push`. Pull upstream updates with `git fetch origin` then
+`git merge origin/main`. Upstream's MIT license is preserved as
+`LICENSE.upstream`; this repo's own LICENSE sits at the root.
