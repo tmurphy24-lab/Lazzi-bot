@@ -13,8 +13,10 @@ secrets.py
 config/personals.py
 .venv
 apikeys.py
+.env
 
 # Local control-panel runtime files — contain your credentials/answers, never commit
 user_config.json
 .bot_run.log
 .bot_run.pid
+.edge-profile

@@ -61,7 +61,20 @@ pyautogui.FAILSAFE = False
 if run_in_background == True:
     pause_at_failed_question = False
     pause_before_submit = False
+    pause_after_filters = False
     run_non_stop = False
+    # Scheduled/headless runs have no one to click dialogs - suppress the
+    # interactive pyautogui popups (sponsor alert, exit summary, etc.) and
+    # route their text to the log instead.
+    def _headless_alert(*args, **kwargs):
+        print_lg("Headless mode: dialog suppressed:", " | ".join(str(a) for a in args if a))
+
+    def _headless_confirm(*args, **kwargs):
+        print_lg("Headless mode: confirm suppressed:", " | ".join(str(a) for a in args if a))
+        return None
+
+    pyautogui.alert = _headless_alert
+    pyautogui.confirm = _headless_confirm
 
 first_name = first_name.strip()
 middle_name = middle_name.strip()

@@ -67,8 +67,10 @@ logs_folder_path = "logs/"
 # Set the maximum amount of time allowed to wait between each click in secs
 click_gap = 1                       # Enter max allowed secs to wait approximately. (Only Non Negative Integers Eg: 0,1,2,3,....)
 
-# If you want to see Chrome running then set run_in_background as False (May reduce performance). 
-run_in_background = False           # True or False, Note: True or False are case-sensitive ,   If True, this will make pause_at_failed_question, pause_before_submit and run_in_background as False
+# If you want to see Chrome running then set run_in_background as False (May reduce performance).
+# Environment override for scheduled/headless runs: set JOB_BOT_HEADLESS=True to force headless mode.
+import os
+run_in_background = os.environ.get("JOB_BOT_HEADLESS", "False").strip().lower() in ("true", "1", "yes")    # True or False, Note: True or False are case-sensitive ,   If True, this will make pause_at_failed_question, pause_before_submit and run_in_background as False
 
 # If you want to disable extensions then set disable_extensions as True (Better for performance)
 disable_extensions = False          # True or False, Note: True or False are case-sensitive
