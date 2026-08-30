@@ -14,7 +14,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Auto Job Applier - Control Panel</title>
+    <title>The Couch - Job Command Center</title>
     <style>
         :root {
             --bg: #f4f6f9;
@@ -215,6 +215,60 @@
         .tick { color: var(--ok); font-weight: 700; }
         .muted-small { color: var(--muted); font-size: 13px; }
 
+        /* --- The Couch: dark cozy surfaces for the Games and Guide tabs --- */
+        .panel.couch {
+            background: #141b26; color: #e8e2d6;
+            border: 1px solid #2b3648; border-radius: 14px;
+            padding: 20px; box-shadow: 0 8px 30px rgba(0,0,0,.35);
+        }
+        .panel.couch h2 { color: #fff; margin: 0 0 6px; font-size: 17px; }
+        .panel.couch .couch-sub { color: #8fa0b8; margin: 0 0 18px; font-size: 13.5px; }
+        .couch-banner { background: linear-gradient(135deg, #1b2740, #141b26 70%); border: 1px solid #2b3648; border-radius: 14px; padding: 18px 20px; margin-bottom: 16px; }
+        .couch-banner h2 { font-size: 20px; margin: 0 0 6px; color: #fff; }
+        .couch-banner p { margin: 0; color: #aeb9cc; font-size: 13.5px; }
+        .couch-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; margin-bottom: 18px; }
+        .couch-card { background: #1c2534; border: 1px solid #2b3648; border-radius: 12px; padding: 14px 16px; cursor: pointer; transition: transform .15s, border-color .15s, box-shadow .15s; }
+        .couch-card:hover { transform: translateY(-2px); border-color: #4f7ec2; }
+        .couch-card.picked { border-color: #7fd6a2; box-shadow: 0 0 0 2px rgba(127,214,162,.25); }
+        .couch-card h3 { margin: 0 0 6px; font-size: 14.5px; color: #fff; }
+        .couch-card p { margin: 0; font-size: 12.5px; color: #8fa0b8; line-height: 1.45; }
+        .couch-quick { background: #1c2534; border: 1px solid #2b3648; border-radius: 12px; padding: 14px 16px; margin-bottom: 16px; }
+        .couch-quick label { display: block; font-size: 12.5px; color: #8fa0b8; margin: 12px 0 4px; }
+        .couch-quick input[type=text], .couch-quick select {
+            width: 100%; padding: 9px 11px; border-radius: 8px; border: 1px solid #2b3648;
+            background: #141b26; color: #e8e2d6; font-size: 13px; font-family: inherit;
+        }
+        .couch-quick .checkline { margin-top: 12px; }
+        .couch-quick .checkline label { margin: 0; color: #e8e2d6; font-size: 13.5px; }
+        .couch-quick .checkline input { accent-color: #4f7ec2; }
+        .couch-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 16px; }
+        .couch-btn { background: #4f7ec2; border: none; color: #fff; border-radius: 10px; padding: 10px 18px; font-weight: 700; font-size: 13.5px; cursor: pointer; }
+        .couch-btn:hover { background: #5f8ed2; }
+        .couch-btn.ghost { background: #1c2534; color: #e8e2d6; border: 1px solid #2b3648; }
+        .couch-btn.ghost:hover { background: #232e42; }
+        .couch-msg { font-size: 12.5px; color: #7fd6a2; align-self: center; }
+        .couch-msg.bad { color: #f08a8a; }
+        .couch-step { display: flex; gap: 12px; background: #1c2534; border: 1px solid #2b3648; border-radius: 12px; padding: 12px 14px; margin-bottom: 10px; }
+        .couch-step .num { flex: none; width: 28px; height: 28px; border-radius: 50%; background: #4f7ec2; color: #fff; font-weight: 700; display: flex; align-items: center; justify-content: center; font-size: 13px; }
+        .couch-step h3 { margin: 0 0 4px; font-size: 14px; color: #fff; }
+        .couch-step p { margin: 0; font-size: 12.5px; color: #8fa0b8; line-height: 1.5; }
+        .couch-foot { font-size: 12px; color: #63748c; margin-top: 14px; }
+        .couch-stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; margin-bottom: 18px; }
+        .couch-stat { background: #1c2534; border: 1px solid #2b3648; border-radius: 12px; padding: 14px 16px; }
+        .couch-stat .val { font-size: 26px; font-weight: 800; color: #fff; }
+        .couch-stat .lab { font-size: 12px; color: #8fa0b8; margin-top: 2px; }
+        .couch-bars-wrap { margin-bottom: 34px; }
+        .couch-bars { display: flex; align-items: flex-end; gap: 4px; height: 120px; background: #1c2534; border: 1px solid #2b3648; border-radius: 12px; padding: 14px; }
+        .couch-bars .bar { flex: 1; background: linear-gradient(180deg, #4f7ec2, #2b4a6f); border-radius: 3px 3px 0 0; min-height: 3px; position: relative; }
+        .couch-bars .bar span { position: absolute; bottom: -18px; left: 50%; transform: translateX(-50%); font-size: 9px; color: #63748c; white-space: nowrap; }
+        .panel.couch table.jobs th, .panel.couch table.jobs td { border-color: #2b3648; color: #dfe7f3; }
+        .panel.couch table.jobs th { background: #232e42; }
+        .panel.couch table.jobs tr:nth-child(even) { background: #18202e; }
+        .panel.couch table.jobs a { color: #7fa5f2; }
+        .couch-boardline { display: inline-flex; align-items: center; gap: 6px; margin: 0 14px 8px 0; font-size: 13px; color: #dfe7f3; }
+        .couch-boardline input { accent-color: #4f7ec2; }
+        .couch-spin { color: #8fa0b8; font-size: 13px; }
+
         /* --- Responsive --- */
         @media (max-width: 640px) {
             header { padding: 16px 16px; }
@@ -234,8 +288,8 @@
 <body>
     <header>
         <div class="wrap">
-            <h1>Auto Job Applier - Control Panel</h1>
-            <p>Set up everything here, then open the Run tab to start. Nothing is uploaded - your details are saved only on this computer.</p>
+            <h1>The Couch</h1>
+            <p>Welcome 2 The Couch - drop your info on the cushions and Lazii-Bot does the job hunting. Nothing is uploaded; your details stay on this computer.</p>
         </div>
     </header>
 
@@ -421,6 +475,31 @@
                 panels.appendChild(panel);
             });
 
+            // The Couch: game-selection, scout, stats and guide tabs (not schema).
+            var gamesBtn = el('button', { type: 'button', text: 'Games' });
+            gamesBtn.dataset.tab = 'Games';
+            gamesBtn.addEventListener('click', function () { showTab('Games'); });
+            tabs.appendChild(gamesBtn);
+            panels.appendChild(buildGamesPanel());
+
+            var scoutBtn = el('button', { type: 'button', text: 'Scout' });
+            scoutBtn.dataset.tab = 'Scout';
+            scoutBtn.addEventListener('click', function () { showTab('Scout'); });
+            tabs.appendChild(scoutBtn);
+            panels.appendChild(buildScoutPanel());
+
+            var statsBtn = el('button', { type: 'button', text: 'Stats' });
+            statsBtn.dataset.tab = 'Stats';
+            statsBtn.addEventListener('click', function () { showTab('Stats'); });
+            tabs.appendChild(statsBtn);
+            panels.appendChild(buildStatsPanel());
+
+            var guideBtn = el('button', { type: 'button', text: 'Guide' });
+            guideBtn.dataset.tab = 'Guide';
+            guideBtn.addEventListener('click', function () { showTab('Guide'); });
+            tabs.appendChild(guideBtn);
+            panels.appendChild(buildGuidePanel());
+
             // Extra "Run" tab (not part of the config schema).
             var runBtn = el('button', { type: 'button', text: 'Run' });
             runBtn.dataset.tab = 'Run';
@@ -432,7 +511,9 @@
             updateModelLists();
             applyAiState();
 
-            showTab(SCHEMA.length ? SCHEMA[0].section : 'Run');
+            var firstUser = (CONFIG.secrets && CONFIG.secrets.username) || '';
+            var freshSetup = !firstUser || firstUser === 'username@example.com';
+            showTab(freshSetup ? 'Guide' : (SCHEMA.length ? SCHEMA[0].section : 'Run'));
         }
 
         function showTab(name) {
@@ -443,9 +524,10 @@
             document.querySelectorAll('#panels .panel').forEach(function (p) {
                 p.classList.toggle('active', p.dataset.tab === name);
             });
-            var isRun = (name === 'Run');
-            document.getElementById('savebar').style.display = isRun ? 'none' : 'flex';
-            if (isRun) { refreshStatus(); refreshLogs(); loadAppliedJobs(); }
+            var hideBar = (name === 'Run' || name === 'Games' || name === 'Guide' || name === 'Scout' || name === 'Stats');
+            document.getElementById('savebar').style.display = hideBar ? 'none' : 'flex';
+            if (name === 'Run') { refreshStatus(); refreshLogs(); loadAppliedJobs(); }
+            if (name === 'Stats') { refreshStats(); }
         }
 
         // ---- AI master switch + model lists ----
@@ -527,6 +609,430 @@
             tableHolder.appendChild(el('p', { class: 'muted-small', text: 'Loading history...' }));
             histWrap.appendChild(tableHolder);
             panel.appendChild(histWrap);
+
+            return panel;
+        }
+
+        // ---- Games tab (game-selection job setup) ----
+        var GAMES = [
+            { id: 'speedrun', title: 'Speedrun', desc: 'Fresh listings only: Past 24 hours, most recent first, Easy Apply only.', patch: { g_date: 'Past 24 hours', g_easy: true } },
+            { id: 'story', title: 'Story Mode', desc: 'A steady week of matches. Past week, most relevant first.', patch: { g_date: 'Past week', g_easy: true } },
+            { id: 'remote', title: 'Remote Rampage', desc: 'Work-from-couch jobs: Remote filter, Past week.', patch: { g_date: 'Past week', g_onsite: 'Remote', g_easy: true } },
+            { id: 'boss', title: 'Boss Rush', desc: 'Aim higher: Mid-Senior level roles, $100,000+ salary filter, Past week.', patch: { g_date: 'Past week', g_exp: 'Mid-Senior level', g_salary: '$100,000+' } }
+        ];
+
+        function couchQuick(labelText, id, value, isCheck) {
+            var box = el('div', {});
+            if (isCheck) {
+                var line = el('div', { 'class': 'checkline' });
+                var cb = el('input', { type: 'checkbox', id: id });
+                if (value === true) cb.checked = true;
+                line.appendChild(cb);
+                line.appendChild(el('label', { for: id, text: labelText }));
+                box.appendChild(line);
+                return { box: box, input: cb };
+            }
+            box.appendChild(el('label', { for: id, text: labelText }));
+            var input = el('input', { type: 'text', id: id });
+            input.value = value;
+            box.appendChild(input);
+            return { box: box, input: input };
+        }
+
+        function buildGamesPanel() {
+            var panel = el('div', { 'class': 'panel couch' });
+            panel.dataset.tab = 'Games';
+
+            panel.appendChild(el('h2', { text: 'Pick your game' }));
+            panel.appendChild(el('p', { 'class': 'couch-sub', text: 'Choose how Lazii-Bot hunts. A card pre-fills the quick settings below - fine-tune anything, then save.' }));
+
+            var cards = el('div', { 'class': 'couch-cards' });
+            GAMES.forEach(function (g) {
+                var card = el('div', { 'class': 'couch-card', role: 'button', tabindex: '0' });
+                card.appendChild(el('h3', { text: g.title }));
+                card.appendChild(el('p', { text: g.desc }));
+                card.addEventListener('click', function () {
+                    document.querySelectorAll('.couch-card').forEach(function (c) { c.classList.remove('picked'); });
+                    card.classList.add('picked');
+                    Object.keys(g.patch).forEach(function (id) {
+                        var node = document.getElementById(id);
+                        if (!node) return;
+                        if (node.type === 'checkbox') node.checked = g.patch[id] === true;
+                        else if (node.tagName === 'SELECT') {
+                            for (var i = 0; i < node.options.length; i++) {
+                                if (node.options[i].value === g.patch[id]) { node.selectedIndex = i; break; }
+                            }
+                        }
+                        else node.value = g.patch[id] || '';
+                    });
+                });
+                cards.appendChild(card);
+            });
+            panel.appendChild(cards);
+
+            var quick = el('div', { 'class': 'couch-quick' });
+            quick.appendChild(el('h2', { text: 'Quick settings' }));
+
+            var qTitles = couchQuick('Job titles (comma separated)', 'g_titles',
+                Array.isArray(currentValue('search', 'search_terms')) ? currentValue('search', 'search_terms').join(', ') : asText(currentValue('search', 'search_terms')));
+            var qLocation = couchQuick('Location', 'g_location', asText(currentValue('search', 'search_location')));
+            quick.appendChild(qTitles.box);
+            quick.appendChild(qLocation.box);
+
+            var qEasy = couchQuick('Easy Apply only', 'g_easy', currentValue('search', 'easy_apply_only') !== false, true);
+            quick.appendChild(qEasy.box);
+
+            var qDate = el('div', {});
+            qDate.appendChild(el('label', { for: 'g_date', text: 'Date posted' }));
+            var dateSel = el('select', { id: 'g_date' });
+            ['', 'Any time', 'Past month', 'Past week', 'Past 24 hours'].forEach(function (opt) {
+                var o = el('option', { value: opt, text: opt === '' ? '(no filter)' : opt });
+                if (asText(currentValue('search', 'date_posted')) === opt) o.selected = true;
+                dateSel.appendChild(o);
+            });
+            qDate.appendChild(dateSel);
+            quick.appendChild(qDate);
+
+            var qOnsite = couchQuick('On-site / Remote / Hybrid (comma separated)', 'g_onsite',
+                Array.isArray(currentValue('search', 'on_site')) ? currentValue('search', 'on_site').join(', ') : '');
+            var qExp = couchQuick('Experience level (comma separated)', 'g_exp',
+                Array.isArray(currentValue('search', 'experience_level')) ? currentValue('search', 'experience_level').join(', ') : '');
+            var qSalary = couchQuick('Salary filter (e.g. "$100,000+")', 'g_salary', asText(currentValue('search', 'salary')));
+            quick.appendChild(qOnsite.box);
+            quick.appendChild(qExp.box);
+            quick.appendChild(qSalary.box);
+
+            var qHeadless = couchQuick('Headless run (no visible browser - for scheduled runs)', 'g_headless', currentValue('settings', 'run_in_background') === true, true);
+            quick.appendChild(qHeadless.box);
+
+            var qResume = el('div', {});
+            qResume.appendChild(el('label', { for: 'g_resume', text: 'Resume to upload' }));
+            var resumeSel = el('select', { id: 'g_resume' });
+            var currentResume = asText(currentValue('questions', 'default_resume_path'));
+            var optBlank = el('option', { value: '', text: '(keep whatever LinkedIn has on file)' });
+            if (!currentResume) optBlank.selected = true;
+            resumeSel.appendChild(optBlank);
+            resumeSel.appendChild(el('option', { value: currentResume, text: currentResume || '(current value)' }));
+            fetch('/api/resumes').then(function (r) { return r.json(); }).then(function (data) {
+                (data.files || []).forEach(function (path) {
+                    var o = el('option', { value: path, text: path });
+                    if (path === currentResume) o.selected = true;
+                    resumeSel.appendChild(o);
+                });
+                if (currentResume && ((data.files || []).indexOf(currentResume) === -1)) {
+                    var o = el('option', { value: currentResume, text: currentResume + ' (file missing?)' });
+                    o.selected = true;
+                    resumeSel.appendChild(o);
+                }
+            }).catch(function () {});
+            qResume.appendChild(resumeSel);
+            quick.appendChild(qResume);
+
+            panel.appendChild(quick);
+
+            var actions = el('div', { 'class': 'couch-actions' });
+            var saveBtn = el('button', { 'class': 'couch-btn ghost', type: 'button', text: 'Save these' });
+            var runBtn = el('button', { 'class': 'couch-btn', type: 'button', text: 'Save & Start hunting' });
+            var msg = el('span', { 'class': 'couch-msg' });
+            actions.appendChild(saveBtn);
+            actions.appendChild(runBtn);
+            actions.appendChild(msg);
+            panel.appendChild(actions);
+            panel.appendChild(el('p', { 'class': 'couch-foot', text: 'Everything here maps to the same settings as the other tabs. Fine-grained filters (blacklists, HR questions, AI answers) live in Search / Profile / Account.' }));
+
+            function quickPayload() {
+                var payload = { search: {}, settings: {}, questions: {} };
+                var titles = document.getElementById('g_titles').value;
+                payload.search.search_terms = titles.split(',').map(function (s) { return s.trim(); }).filter(function (s) { return s !== ''; });
+                payload.search.search_location = document.getElementById('g_location').value.trim();
+                payload.search.easy_apply_only = document.getElementById('g_easy').checked;
+                payload.search.date_posted = document.getElementById('g_date').value;
+                payload.search.on_site = document.getElementById('g_onsite').value.split(',').map(function (s) { return s.trim(); }).filter(function (s) { return s !== ''; });
+                payload.search.experience_level = document.getElementById('g_exp').value.split(',').map(function (s) { return s.trim(); }).filter(function (s) { return s !== ''; });
+                payload.search.salary = document.getElementById('g_salary').value.trim();
+                payload.settings.run_in_background = document.getElementById('g_headless').checked;
+                payload.questions.default_resume_path = document.getElementById('g_resume').value;
+                return payload;
+            }
+
+            function saveQuick(thenStart) {
+                msg.className = 'couch-msg';
+                msg.textContent = 'Saving...';
+                fetch('/api/config', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(quickPayload())
+                }).then(function (r) {
+                    return r.json().then(function (body) { return { ok: r.ok, body: body }; });
+                }).then(function (res) {
+                    if (!res.ok) {
+                        msg.className = 'couch-msg bad';
+                        msg.textContent = 'Could not save: ' + (res.body && res.body.error ? res.body.error : 'unknown error');
+                        return;
+                    }
+                    CONFIG = mergeIntoConfig(res.body);
+                    BASELINE = JSON.parse(JSON.stringify(CONFIG));
+                    msg.className = 'couch-msg';
+                    msg.textContent = 'Saved. Lazii-Bot approves.';
+                    if (thenStart) {
+                        if (confirm('Start hunting now?\n\nA browser will open and use your LinkedIn account.')) {
+                            fetch('/api/run', { method: 'POST' }).then(function () { showTab('Run'); });
+                        }
+                    }
+                }).catch(function (err) {
+                    msg.className = 'couch-msg bad';
+                    msg.textContent = 'Could not save: ' + err;
+                });
+            }
+
+            saveBtn.addEventListener('click', function () { saveQuick(false); });
+            runBtn.addEventListener('click', function () { saveQuick(true); });
+            return panel;
+        }
+
+        // ---- Scout tab (multi-board job discovery) ----
+        function buildScoutPanel() {
+            var panel = el('div', { 'class': 'panel couch' });
+            panel.dataset.tab = 'Scout';
+
+            panel.appendChild(el('h2', { text: 'Scout' }));
+            panel.appendChild(el('p', { 'class': 'couch-sub', text: 'Lazii-Bot sniffs multiple job boards at once (no LinkedIn login needed). Open anything interesting in a new tab; the bot itself still applies via LinkedIn Easy Apply.' }));
+
+            var quick = el('div', { 'class': 'couch-quick' });
+            var qTitles = couchQuick('Job titles (comma separated, up to 3)', 's_titles',
+                Array.isArray(currentValue('search', 'search_terms')) ? currentValue('search', 'search_terms').slice(0, 3).join(', ') : '');
+            var qLocation = couchQuick('Location', 's_location', asText(currentValue('search', 'search_location')));
+            quick.appendChild(qTitles.box);
+            quick.appendChild(qLocation.box);
+
+            var boardsLine = el('div', { style: 'margin-top:12px;' });
+            boardsLine.appendChild(el('label', { text: 'Boards' }));
+            var boardsWrap = el('div', { style: 'margin-top:6px;' });
+            ['indeed', 'ziprecruiter', 'glassdoor', 'linkedin', 'google'].forEach(function (b, i) {
+                var line = el('label', { 'class': 'couch-boardline' });
+                var cb = el('input', { type: 'checkbox', value: b });
+                cb.checked = (b === 'indeed' || b === 'ziprecruiter');
+                line.appendChild(cb);
+                line.appendChild(document.createTextNode(b));
+                boardsWrap.appendChild(line);
+            });
+            boardsLine.appendChild(boardsWrap);
+            quick.appendChild(boardsLine);
+
+            var row = el('div', { style: 'display:flex; gap:16px; flex-wrap:wrap;' });
+            var qHours = el('div', { style: 'flex:1; min-width:160px;' });
+            qHours.appendChild(el('label', { for: 's_hours', text: 'Posted within' }));
+            var hoursSel = el('select', { id: 's_hours' });
+            [['24', 'Past 24 hours'], ['72', 'Past 3 days'], ['168', 'Past week'], ['336', 'Past 2 weeks']].forEach(function (pair) {
+                var o = el('option', { value: pair[0], text: pair[1] });
+                if (pair[0] === '72') o.selected = true;
+                hoursSel.appendChild(o);
+            });
+            qHours.appendChild(hoursSel);
+            var qLimit = el('div', { style: 'flex:1; min-width:160px;' });
+            qLimit.appendChild(el('label', { for: 's_limit', text: 'Results per board (max)' }));
+            var limitIn = el('input', { type: 'number', id: 's_limit', value: '30', min: '5', max: '100' });
+            qLimit.appendChild(limitIn);
+            row.appendChild(qHours);
+            row.appendChild(qLimit);
+            quick.appendChild(row);
+            panel.appendChild(quick);
+
+            var actions = el('div', { 'class': 'couch-actions' });
+            var scoutBtn = el('button', { 'class': 'couch-btn', type: 'button', text: 'Send Lazii-Bot scouting' });
+            var msg = el('span', { 'class': 'couch-spin' });
+            actions.appendChild(scoutBtn);
+            actions.appendChild(msg);
+            panel.appendChild(actions);
+
+            var holder = el('div', { style: 'overflow-x:auto; margin-top:8px;' });
+            holder.appendChild(el('p', { 'class': 'muted-small', text: 'Scouting results appear here.' }));
+            panel.appendChild(holder);
+
+            scoutBtn.addEventListener('click', function () {
+                var boards = [];
+                boardsWrap.querySelectorAll('input:checked').forEach(function (cb) { boards.push(cb.value); });
+                var titles = document.getElementById('s_titles').value.trim();
+                var location = document.getElementById('s_location').value.trim();
+                if (!titles || !location || !boards.length) {
+                    msg.className = 'couch-spin';
+                    msg.textContent = 'Need titles, location and at least one board.';
+                    return;
+                }
+                scoutBtn.disabled = true;
+                msg.className = 'couch-spin';
+                msg.textContent = 'Scouting... this can take 20-90 seconds across boards.';
+                holder.innerHTML = '';
+                holder.appendChild(el('p', { 'class': 'couch-spin', text: 'Lazii-Bot is out there sniffing listings...' }));
+                fetch('/api/scout?titles=' + encodeURIComponent(titles)
+                    + '&location=' + encodeURIComponent(location)
+                    + '&boards=' + encodeURIComponent(boards.join(','))
+                    + '&hours=' + document.getElementById('s_hours').value
+                    + '&limit=' + document.getElementById('s_limit').value)
+                    .then(function (r) { return r.json().then(function (b) { return { ok: r.ok, body: b }; }); })
+                    .then(function (res) {
+                        scoutBtn.disabled = false;
+                        msg.textContent = '';
+                        if (!res.ok) {
+                            holder.innerHTML = '';
+                            holder.appendChild(el('p', { 'class': 'couch-msg bad', text: 'Scout failed: ' + (res.body && res.body.error ? res.body.error : 'unknown') }));
+                            return;
+                        }
+                        var jobs = res.body || [];
+                        holder.innerHTML = '';
+                        if (!jobs.length) {
+                            holder.appendChild(el('p', { 'class': 'couch-spin', text: 'Nothing found. Try wider titles, more boards, or a longer window.' }));
+                            return;
+                        }
+                        var table = el('table', { 'class': 'jobs' });
+                        var thead = el('thead');
+                        var hr = el('tr');
+                        ['Title', 'Company', 'Location', 'Posted', 'Source', 'Link'].forEach(function (h) { hr.appendChild(el('th', { text: h })); });
+                        thead.appendChild(hr);
+                        table.appendChild(thead);
+                        var tbody = el('tbody');
+                        jobs.forEach(function (j) {
+                            var tr = el('tr');
+                            tr.appendChild(el('td', { text: asText(j.title) }));
+                            tr.appendChild(el('td', { text: asText(j.company) }));
+                            tr.appendChild(el('td', { text: asText(j.location) }));
+                            tr.appendChild(el('td', { text: asText(j.date_posted).slice(0, 10) }));
+                            tr.appendChild(el('td', { text: Array.isArray(j.site) ? j.site.join(',') : asText(j.site) }));
+                            var linkCell = el('td');
+                            if (j.job_url) linkCell.appendChild(el('a', { href: asText(j.job_url), target: '_blank', rel: 'noopener', text: 'Open' }));
+                            else linkCell.textContent = 'N/A';
+                            tr.appendChild(linkCell);
+                            tbody.appendChild(tr);
+                        });
+                        table.appendChild(tbody);
+                        holder.appendChild(table);
+                        msg.textContent = jobs.length + ' listings found.';
+                    })
+                    .catch(function (err) {
+                        scoutBtn.disabled = false;
+                        msg.textContent = '';
+                        holder.innerHTML = '';
+                        holder.appendChild(el('p', { 'class': 'couch-msg bad', text: 'Scout failed: ' + err }));
+                    });
+            });
+            return panel;
+        }
+
+        // ---- Stats tab (application analytics) ----
+        function buildStatsPanel() {
+            var panel = el('div', { 'class': 'panel couch' });
+            panel.dataset.tab = 'Stats';
+            panel.id = 'statsPanel';
+
+            panel.appendChild(el('h2', { text: 'Stats' }));
+            panel.appendChild(el('p', { 'class': 'couch-sub', text: 'What the hunt has produced so far. Fed from the applied/failed history CSVs.' }));
+            panel.appendChild(el('div', { id: 'statsBody' }));
+            panel.appendChild(el('p', { 'class': 'couch-foot', text: 'Raw data: all excels/all_applied_applications_history.csv and all_failed_applications_history.csv' }));
+            return panel;
+        }
+
+        function refreshStats() {
+            var body = document.getElementById('statsBody');
+            if (!body) return;
+            fetch('/api/stats').then(function (r) { return r.json(); }).then(function (s) {
+                body.innerHTML = '';
+                var total = s.total_applied || 0;
+                var failed = s.total_failed || 0;
+                var days = s.day_counts || {};
+                var weekAgo = new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10);
+                var last7 = 0;
+                Object.keys(days).forEach(function (k) { if (k >= weekAgo) last7 += days[k]; });
+
+                var cards = el('div', { 'class': 'couch-stats' });
+                [['Total applied', String(total)], ['Failed', String(failed)], ['Last 7 days', String(last7)],
+                 ['Companies', String((s.top_companies || []).length)]].forEach(function (pair) {
+                    var card = el('div', { 'class': 'couch-stat' });
+                    card.appendChild(el('div', { 'class': 'val', text: pair[1] }));
+                    card.appendChild(el('div', { 'class': 'lab', text: pair[0] }));
+                    cards.appendChild(card);
+                });
+                body.appendChild(cards);
+
+                var wrap = el('div', { 'class': 'couch-bars-wrap' });
+                wrap.appendChild(el('h2', { text: 'Applications per day (last 14 days)' }));
+                var bars = el('div', { 'class': 'couch-bars' });
+                var keys = Object.keys(days).slice(-14);
+                var maxVal = 1;
+                keys.forEach(function (k) { if (days[k] > maxVal) maxVal = days[k]; });
+                if (!keys.length) {
+                    bars.appendChild(el('p', { 'class': 'couch-spin', text: 'No dated applications yet - they show up here after your first run.' }));
+                } else {
+                    keys.forEach(function (k) {
+                        var bar = el('div', { 'class': 'bar' });
+                        bar.style.height = Math.max(4, Math.round(days[k] / maxVal * 100)) + '%';
+                        bar.appendChild(el('span', { text: k.slice(5) + ' (' + days[k] + ')' }));
+                        bars.appendChild(bar);
+                    });
+                }
+                wrap.appendChild(bars);
+                body.appendChild(wrap);
+
+                body.appendChild(el('h2', { text: 'Top companies' }));
+                if (!(s.top_companies || []).length) {
+                    body.appendChild(el('p', { 'class': 'couch-spin', text: 'Nothing yet.' }));
+                } else {
+                    var list = el('div', { 'class': 'couch-quick' });
+                    s.top_companies.forEach(function (pair) {
+                        var line = el('div', {});
+                        line.textContent = pair[0] + ' - ' + pair[1] + (pair[1] === 1 ? ' application' : ' applications');
+                        list.appendChild(line);
+                    });
+                    body.appendChild(list);
+                }
+            }).catch(function () {
+                body.innerHTML = '';
+                body.appendChild(el('p', { 'class': 'couch-msg bad', text: 'Could not load stats.' }));
+            });
+        }
+
+        function buildGuidePanel() {
+            var panel = el('div', { 'class': 'panel couch' });
+            panel.dataset.tab = 'Guide';
+
+            var banner = el('div', { 'class': 'couch-banner' });
+            banner.appendChild(el('h2', { text: 'Welcome 2 The Couch' }));
+            banner.appendChild(el('p', { text: 'This is the command center. You put your info in, Lazii-Bot does the rest: hunts listings, answers questions, uploads your resume and logs every application. First time here? Walk the steps below - top to bottom - and you are done.' }));
+            panel.appendChild(banner);
+
+            var steps = [
+                ['Account', "Drop your LinkedIn email + password here so runs can log in on their own. Turn on 'Use AI' and add an API key (or point at Ollama) to unlock tailored resumes and Lazii-Bot's chat brain. Your keys stay on this machine."],
+                ['Profile', 'Your name, phone, address and the equal-opportunity answers applications ask for. Fill these once; every application reuses them.'],
+                ['Games', 'Pick a game card and quick settings to define the hunt: titles, location, remote or not, freshness. This is the fun way to fill the Search tab.'],
+                ['Resume', 'Drop resume PDFs into the "all resumes" folder in the project, then pick the active one in Games (or chat: "switch to my resume X"). Missing one? LinkedIn reuses your last upload.'],
+                ['Scout', 'Hunt multiple boards without LinkedIn: Lazii-Bot scrapes Indeed, ZipRecruiter, Glassdoor and friends and shows fresh listings with links. Great for spotting demand while the bot applies.'],
+                ['Run', 'Press Start and watch the log. Keep the browser in the foreground for normal runs, or flip Headless in Games for invisible scheduled runs. You can also just tell Lazii-Bot in chat: "start hunting" or "stop".'],
+                ['Track', 'Every application lands in the history table on the Run tab, the Stats tab charts your daily pace, and all excels/all_applied_applications_history.csv holds the raw data.']
+            ];
+            steps.forEach(function (s, i) {
+                var step = el('div', { 'class': 'couch-step' });
+                step.appendChild(el('div', { 'class': 'num', text: String(i + 1) }));
+                var body = el('div');
+                body.appendChild(el('h3', { text: s[0] }));
+                body.appendChild(el('p', { text: s[1] }));
+                step.appendChild(body);
+                panel.appendChild(step);
+            });
+
+            var about = el('div', { 'class': 'couch-step' });
+            about.appendChild(el('div', { 'class': 'num', text: 'L' }));
+            var aboutBody = el('div');
+            aboutBody.appendChild(el('h3', { text: 'About Lazii-Bot' }));
+            aboutBody.appendChild(el('p', { text: 'Chubby, scruffy, permanently horizontal. He lives in the bubble at the bottom-right of every page, talks to your AI, and changes settings when you ask. Roadmap: chat-controlled runs, more job boards, weekly summaries. Monetization later: free local couch forever; paid extras (cloud key hosting, multi-board packs, priority AI models) only if you want them - the couch itself stays free.' }));
+            about.appendChild(aboutBody);
+            panel.appendChild(about);
+
+            var sched = el('div', { 'class': 'couch-step' });
+            sched.appendChild(el('div', { 'class': 'num', text: 'S' }));
+            var schedBody = el('div');
+            schedBody.appendChild(el('h3', { text: 'Scheduled agent' }));
+            schedBody.appendChild(el('p', { text: 'A Windows scheduled task (LinkedInJobBotDaily) starts the bot every day at 09:37 in headless mode. It reads credentials from environment variables or a .env file in the project root - never from git-tracked files.' }));
+            sched.appendChild(schedBody);
+            panel.appendChild(sched);
 
             return panel;
         }
@@ -763,8 +1269,12 @@
             loadAll();
         });
 
+        // Lazii-Bot changed settings via chat - re-render everything from the saved config.
+        window.addEventListener('lazii:config-changed', function () { loadAll(); });
+
         loadAll();
         pollLoop();
     </script>
+    <script src="/static/lazii_overlay.js" defer></script>
 </body>
 </html>
