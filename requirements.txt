@@ -14,7 +14,6 @@ langchain==1.3.14                # core LangChain (init_chat_model, structured o
 langchain-openai==1.4.2          # OpenAI + any OpenAI-compatible server (Ollama, LM Studio, DeepSeek, vLLM)
 langchain-google-genai==4.3.2    # Google Gemini
 langchain-anthropic==1.7.0       # Anthropic Messages API + compatible services (MiniMax's native endpoint)
-langgraph==1.2.10                # graph orchestration for the question-answer pipeline
 
 # Resume / document generation
 fpdf2                            # PDF output (imported as `fpdf`)

@@ -10,11 +10,12 @@ License:    MIT License
 GitHub:     https://github.com/GodsScion/Auto_job_applier_linkedIn
 
 ------------------------------------------------------------------------------
-Provider-agnostic AI layer built on LangChain + LangGraph.
+Provider-agnostic AI layer built on LangChain.
 
 A single code path serves OpenAI, any OpenAI-compatible endpoint (Ollama,
-LM Studio, DeepSeek, vLLM, and similar) and Google Gemini. Pick the provider,
-model, key and URL in `config/secrets.py`.
+LM Studio, DeepSeek, vLLM, and similar), Anthropic-Messages-format services
+(MiniMax) and Google Gemini. Pick the provider, model, key and URL in
+`config/secrets.py`.
 
 Public interface (used by runAiBot.py):
     create_ai_client()  -> AIClient | None
@@ -30,10 +31,8 @@ import os
 from typing import Optional
 
 from pydantic import BaseModel, Field
-from typing_extensions import TypedDict
 
 from langchain.chat_models import init_chat_model
-from langgraph.graph import StateGraph, START, END
 
 import config.secrets as cfg
 from config.settings import showAiErrorAlerts
@@ -104,10 +103,9 @@ def _msg_text(message) -> str:
 
 
 class AIClient:
-    '''Small holder for the chat model and its compiled answer graph.'''
+    '''Small holder for the chat model.'''
     def __init__(self, model):
         self.model = model
-        self.answer_graph = _build_answer_graph(model)
 
 
 def create_ai_client() -> Optional[AIClient]:
@@ -200,79 +198,32 @@ def extract_skills(client: Optional[AIClient], job_description: str, stream: boo
 
 
 # --------------------------------------------------------------------------- #
-# Question answering (LangGraph pipeline)
+# Question answering
 # --------------------------------------------------------------------------- #
-class _AnswerState(TypedDict, total=False):
-    question: str
-    options: Optional[list]
-    question_type: str
-    job_description: Optional[str]
-    about_company: Optional[str]
-    user_information: Optional[str]
-    prompt: str
-    raw: str
-    answer: str
+def _build_answer_prompt(question, user_information_all, job_description, about_company, options) -> str:
+    prompt = ai_answer_prompt.format(user_information_all or "N/A", question or "")
+    if job_description and job_description != "Unknown":
+        prompt += f"\n\nJob description:\n{job_description}"
+    if about_company and about_company != "Unknown":
+        prompt += f"\n\nAbout the company:\n{about_company}"
+    if options:
+        prompt += "\n\nAnswer with exactly one of these options:\n" + "\n".join(f"- {o}" for o in options)
+    return prompt
 
 
-def _build_answer_graph(model):
-    '''
-    Compile a small LangGraph pipeline for answering a form question:
-
-        build_prompt -> generate -> (route by question type) -> format_text | select_option
-
-    Free-text questions are returned as-is; select questions are snapped to one of
-    the allowed options. The graph gives us a clean seam to extend later (validation,
-    retries, resume/cover-letter nodes).
-    '''
-    def build_prompt(state: _AnswerState) -> dict:
-        prompt = ai_answer_prompt.format(state.get("user_information") or "N/A", state.get("question") or "")
-        jd = state.get("job_description")
-        if jd and jd != "Unknown":
-            prompt += f"\n\nJob description:\n{jd}"
-        about = state.get("about_company")
-        if about and about != "Unknown":
-            prompt += f"\n\nAbout the company:\n{about}"
-        options = state.get("options")
-        if options:
-            prompt += "\n\nAnswer with exactly one of these options:\n" + "\n".join(f"- {o}" for o in options)
-        return {"prompt": prompt}
-
-    def generate(state: _AnswerState) -> dict:
-        message = model.invoke(state["prompt"])
-        return {"raw": _msg_text(message).strip()}
-
-    def format_text(state: _AnswerState) -> dict:
-        return {"answer": (state.get("raw") or "").strip()}
-
-    def select_option(state: _AnswerState) -> dict:
-        raw = (state.get("raw") or "").strip()
-        options = state.get("options") or []
-        for opt in options:                       # exact
-            if raw == opt:
-                return {"answer": opt}
-        low = raw.lower()
-        for opt in options:                       # case-insensitive
-            if low == opt.lower():
-                return {"answer": opt}
-        for opt in options:                       # substring (either direction)
-            if opt.lower() in low or low in opt.lower():
-                return {"answer": opt}
-        return {"answer": raw}
-
-    def route(state: _AnswerState) -> str:
-        return "select" if state.get("question_type") in ("single_select", "multiple_select") else "text"
-
-    graph = StateGraph(_AnswerState)
-    graph.add_node("build_prompt", build_prompt)
-    graph.add_node("generate", generate)
-    graph.add_node("format_text", format_text)
-    graph.add_node("select_option", select_option)
-    graph.add_edge(START, "build_prompt")
-    graph.add_edge("build_prompt", "generate")
-    graph.add_conditional_edges("generate", route, {"text": "format_text", "select": "select_option"})
-    graph.add_edge("format_text", END)
-    graph.add_edge("select_option", END)
-    return graph.compile()
+def _snap_to_option(raw: str, options: list) -> str:
+    '''Match the model's free-text answer to one of the allowed options.'''
+    for opt in options:                       # exact
+        if raw == opt:
+            return opt
+    low = raw.lower()
+    for opt in options:                       # case-insensitive
+        if low == opt.lower():
+            return opt
+    for opt in options:                       # substring (either direction)
+        if opt.lower() in low or low in opt.lower():
+            return opt
+    return raw
 
 
 def answer_question(
@@ -287,20 +238,18 @@ def answer_question(
 ) -> str:
     '''
     Generate an answer to a single application-form question.
-    Returns the answer string, or "" if AI is unavailable or the call fails.
+
+    Free-text questions are returned as-is; select questions are snapped to
+    one of the allowed options. Returns the answer string, or "" if AI is
+    unavailable or the call fails.
     '''
     if not client or not question:
         return ""
     try:
-        final = client.answer_graph.invoke({
-            "question": question,
-            "options": options,
-            "question_type": question_type,
-            "job_description": job_description,
-            "about_company": about_company,
-            "user_information": user_information_all,
-        })
-        answer = final.get("answer", "") or ""
+        prompt = _build_answer_prompt(question, user_information_all, job_description, about_company, options)
+        raw = _msg_text(client.model.invoke(prompt)).strip()
+        is_select = question_type in ("single_select", "multiple_select")
+        answer = _snap_to_option(raw, options or []) if is_select else raw
         print_lg(f'AI answered "{question}" -> "{answer}"')
         return answer
     except Exception as e:
