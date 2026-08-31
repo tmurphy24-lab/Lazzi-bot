@@ -53,6 +53,22 @@ class _StructuredModel(_StubModel):
         return _Structured(self._payload)
 
 
+# ----------------------------- temperature parsing ---------------------------
+@pytest.mark.parametrize("value, expected", [
+    (None, None),
+    ("", None),
+    ("   ", None),
+    ("not-a-number", None),   # unparseable falls back to model default, doesn't crash AI
+    ("0", 0.0),
+    ("0.3", 0.3),
+    (0.7, 0.7),
+    (1, 1.0),
+    (True, None),   # bool is not a number here, even though isinstance(True, int) is True
+])
+def test_parse_temperature(value, expected):
+    assert C._parse_temperature(value) == expected
+
+
 # ------------------------------- provider mapping ---------------------------
 @pytest.mark.parametrize("name, expected", [
     ("gemini", "google_genai"),
@@ -142,6 +158,54 @@ def test_create_ai_client_returns_none_when_ai_disabled(monkeypatch):
     import config.secrets as cfg
     monkeypatch.setattr(cfg, "use_AI", False)
     assert C.create_ai_client() is None
+
+
+def test_create_ai_client_forwards_parsed_temperature(monkeypatch):
+    '''
+    llm_temperature is stored as free text (config_schema exposes it that
+    way so it can be left blank) - create_ai_client must parse it before
+    handing it to LangChain, not pass the raw string through.
+    '''
+    import config.secrets as cfg
+    monkeypatch.setattr(cfg, "use_AI", True)
+    monkeypatch.setattr(cfg, "ai_provider", "openai")
+    monkeypatch.setattr(cfg, "llm_model", "gpt-4o-mini")
+    monkeypatch.setattr(cfg, "llm_api_key", "test-key")
+    monkeypatch.setattr(cfg, "llm_api_url", "https://api.openai.com/v1/")
+    monkeypatch.setattr(cfg, "llm_temperature", "0.3")
+
+    seen = {}
+
+    def fake_init_chat_model(model_name, model_provider, **kwargs):
+        seen["kwargs"] = kwargs
+        return _StubModel("ok")
+
+    monkeypatch.setattr(C, "init_chat_model", fake_init_chat_model)
+    client = C.create_ai_client()
+    assert client is not None
+    assert seen["kwargs"]["temperature"] == 0.3
+
+
+def test_create_ai_client_omits_temperature_when_blank(monkeypatch):
+    '''A blank llm_temperature must not send temperature=None to the model.'''
+    import config.secrets as cfg
+    monkeypatch.setattr(cfg, "use_AI", True)
+    monkeypatch.setattr(cfg, "ai_provider", "openai")
+    monkeypatch.setattr(cfg, "llm_model", "gpt-4o-mini")
+    monkeypatch.setattr(cfg, "llm_api_key", "test-key")
+    monkeypatch.setattr(cfg, "llm_api_url", "https://api.openai.com/v1/")
+    monkeypatch.setattr(cfg, "llm_temperature", "")
+
+    seen = {}
+
+    def fake_init_chat_model(model_name, model_provider, **kwargs):
+        seen["kwargs"] = kwargs
+        return _StubModel("ok")
+
+    monkeypatch.setattr(C, "init_chat_model", fake_init_chat_model)
+    client = C.create_ai_client()
+    assert client is not None
+    assert "temperature" not in seen["kwargs"]
 
 
 def test_close_ai_client_is_a_noop():

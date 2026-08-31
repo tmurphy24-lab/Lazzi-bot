@@ -98,6 +98,32 @@ provider in `modules/ai/connections.py::_resolve_provider()` - any other
 Anthropic-Messages-format service works the same way, just change
 `llm_api_url`. Needs `langchain-anthropic` (in requirements.txt).
 
+`llm_temperature` (Account tab, advanced) controls how consistent vs. varied
+answers are, 0-2. Stored as free text (not a schema "number" field) so it can
+be left blank - some newer models (GPT-5, o-series) only allow their own
+default and error on any explicit value. Blank or unparseable input is treated
+as "unset", never sent to the model. Applies to every AI call through
+`create_ai_client()`: form answers, Lazii-Bot chat, and resume tailoring.
+Lower (0-0.3) is steadier for resume tailoring and form answers, where the
+same facts every time matters more than varied wording.
+
+## AI resume tailoring
+
+Pipeline tab, per card: "Tailor resume" sends the applicant's active resume
+(read via `pypdf`/`python-docx`) plus one saved job's description to the AI,
+with a prompt that forbids inventing facts not already in the source resume.
+The result is rendered to a new PDF and saved under `all resumes/` -
+`POST /api/resumes/tailor` `{"id": "<saved job id>"}`, backed by
+`modules/ai/connections.py::tailor_resume()` and
+`modules/ai/prompts.py::tailor_resume_prompt`.
+
+PDF rendering gotcha (cost real debugging time - see `.learnings/ERRORS.md`
+ERR-014): fpdf2's `multi_cell()` defaults to `new_x=XPos.RIGHT`, so the SECOND
+line of any document raises `"Not enough horizontal space to render a single
+character"` - not a font or long-word problem, a cursor-position one. Always
+pass `new_x=XPos.LMARGIN, new_y=YPos.NEXT` when writing sequential full-width
+lines.
+
 ## Security
 
 The panel binds to 127.0.0.1, but that alone never protected it: any page in
@@ -125,7 +151,7 @@ holds non-secret settings only (written by the control panel).
 - venv at `.venv` (Python 3.14). Tests: `.venv\Scripts\python -m pytest tests/`
   (add `--ignore=tests/test_ai_connections.py` if logs/log.txt is locked).
 - New endpoints in `app.py`: `/api/chat`, `/api/stats`, `/api/resumes`,
-  `/api/scout`, `/api/saved`, `/favicon.svg`.
+  `/api/resumes/tailor`, `/api/scout`, `/api/saved`, `/favicon.svg`.
 - Branding: `static/couch_icon.svg` is the app mark (served at `/favicon.svg`
   and shown in the header); `couch.ico` is the same art for the desktop
   shortcut, generated from `static/couch_icon.png`.

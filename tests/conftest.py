@@ -8,6 +8,8 @@ failing tests first, then counts (ran / passed / failed / skipped), then an
 overall verdict line.
 '''
 
+import importlib
+
 import pytest
 
 
@@ -17,6 +19,30 @@ def client():
     import app
     app.app.config.update(TESTING=True)
     return app.app.test_client()
+
+
+@pytest.fixture(autouse=True)
+def _reset_config_secrets():
+    '''
+    config/secrets.py applies user_config.json to its own globals on import,
+    and app.py's _apply_config_patch() (POST /api/config) reloads it after
+    every save so the same running server process picks up new settings
+    without a restart (see test_saving_secrets_takes_effect_for_the_same_
+    running_process). importlib.reload() mutates that module in place, which
+    is real singleton state shared by the whole pytest process - without this,
+    one test saving secrets.use_AI=True leaks into every test that runs after
+    it, however unrelated. Reload to pristine (env-vars only, no
+    user_config.json) before each test so they can't see each other's writes.
+    '''
+    import config.secrets as cfg
+    from config import _overrides
+    original_loader = _overrides.load_user_config
+    _overrides.load_user_config = lambda: {}
+    try:
+        importlib.reload(cfg)
+    finally:
+        _overrides.load_user_config = original_loader
+    yield
 
 
 def pytest_terminal_summary(terminalreporter, exitstatus, config):

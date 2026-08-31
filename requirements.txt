@@ -18,6 +18,7 @@ langchain-anthropic==1.7.0       # Anthropic Messages API + compatible services 
 # Resume / document generation
 fpdf2                            # PDF output (imported as `fpdf`)
 python-docx                      # .docx output (imported as `docx`)
+pypdf                            # PDF text extraction, for AI resume tailoring
 
 # Local applied-jobs history web UI (app.py)
 flask

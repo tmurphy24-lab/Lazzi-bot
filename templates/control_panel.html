@@ -1286,6 +1286,42 @@
             row.appendChild(del);
             card.appendChild(row);
 
+            // AI resume tailoring: rewrites the active resume for this one job
+            // and drops it into "all resumes" (pick it up in the Games tab).
+            var tailorRow = el('div', { 'class': 'row' });
+            var tailorBtn = el('button', { 'class': 'mini', type: 'button', text: 'Tailor resume' });
+            var tailorMsg = el('span', { 'class': 'couch-spin', style: 'font-size:11px;' });
+            tailorBtn.addEventListener('click', function () {
+                tailorBtn.disabled = true;
+                tailorMsg.className = 'couch-spin';
+                tailorMsg.textContent = 'Tailoring... can take up to a minute.';
+                fetch('/api/resumes/tailor', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id: job.id })
+                })
+                    .then(function (r) { return r.json().then(function (b) { return { ok: r.ok, body: b }; }); })
+                    .then(function (res) {
+                        tailorBtn.disabled = false;
+                        if (!res.ok) {
+                            tailorMsg.className = 'couch-msg bad';
+                            tailorMsg.textContent = res.body.error || 'Tailoring failed.';
+                            return;
+                        }
+                        var name = res.body.resume_path.split('/').pop();
+                        tailorMsg.className = 'couch-msg';
+                        tailorMsg.textContent = 'Saved as ' + name + ' - pick it in Games.';
+                    })
+                    .catch(function (err) {
+                        tailorBtn.disabled = false;
+                        tailorMsg.className = 'couch-msg bad';
+                        tailorMsg.textContent = 'Tailoring failed: ' + err;
+                    });
+            });
+            tailorRow.appendChild(tailorBtn);
+            tailorRow.appendChild(tailorMsg);
+            card.appendChild(tailorRow);
+
             // Notes: collapsed to a one-line summary until clicked, so a column
             // of cards stays scannable.
             var noteWrap = el('div', { 'class': 'note-wrap' });
