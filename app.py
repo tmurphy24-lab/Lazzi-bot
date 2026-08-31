@@ -425,6 +425,19 @@ def _apply_config_patch(payload):
     except OSError as err:
         return {}, (jsonify({"error": f"Could not save settings: {err}"}), 500)
 
+    if "secrets" in coerced:
+        # config.secrets is imported once by _load_defaults() at startup and
+        # never again, so within this long-running process its globals would
+        # otherwise stay frozen at startup's values forever - Lazii-Bot chat
+        # and AI resume tailoring both read cfg.use_AI/ai_provider/llm_* from
+        # that module directly. Reloading here re-runs its own
+        # `_overrides.apply(...)` call, so the very next AI call in this
+        # process sees whatever was just saved. (runAiBot.py doesn't need
+        # this: it's a fresh subprocess each run, so its own import is
+        # already current.)
+        import config.secrets
+        importlib.reload(config.secrets)
+
     return current, None
 
 
@@ -521,6 +534,134 @@ def api_resumes():
         "files": _list_resumes(),
         "current": _effective_config().get("questions", {}).get("default_resume_path", ""),
     })
+
+
+# ===========================================================================
+# AI resume tailoring: read the applicant's current resume, rewrite it for one
+# saved job, save the result as a new file under "all resumes" (so it shows up
+# in the existing resume list/switcher - no new storage or listing code needed).
+# ===========================================================================
+def _read_resume_text(path) -> str:
+    '''Plain text from a .pdf or .docx resume. Raises on an unreadable/unknown file.'''
+    ext = os.path.splitext(path)[1].lower()
+    if ext == '.pdf':
+        from pypdf import PdfReader
+        reader = PdfReader(path)
+        return '\n'.join(page.extract_text() or '' for page in reader.pages)
+    if ext == '.docx':
+        import docx
+        return '\n'.join(p.text for p in docx.Document(path).paragraphs)
+    raise ValueError(f"unsupported resume file type: {ext}")
+
+
+def _pdf_safe(text: str) -> str:
+    '''
+    fpdf2's built-in core fonts only encode latin-1. AI output routinely
+    contains smart quotes/em-dashes/bullets that would otherwise raise
+    FPDFUnicodeEncodingException and lose the whole tailored resume.
+    '''
+    replacements = {
+        '‘': "'", '’': "'", '“': '"', '”': '"',
+        '–': '-', '—': '-', '…': '...', '•': '-',
+    }
+    for bad, good in replacements.items():
+        text = text.replace(bad, good)
+    return text.encode('latin-1', errors='replace').decode('latin-1')
+
+
+def _write_tailored_pdf(text: str, out_path: str) -> None:
+    '''
+    Render tailored resume text as a simple, ATS-friendly single-column PDF.
+
+    fpdf2's multi_cell() defaults to new_x=XPos.RIGHT: after one call the
+    cursor sits at the right edge of what it just drew, not back at the left
+    margin. A second call with w=0 ("fill the rest of the line") then measures
+    almost no width left and raises "Not enough horizontal space to render a
+    single character" - on ANY second line, blank or not, regardless of
+    length. new_x=LMARGIN/new_y=NEXT resets the cursor before each line, the
+    same way a normal paragraph-by-paragraph renderer needs to.
+    '''
+    from fpdf import FPDF
+    from fpdf.enums import XPos, YPos
+    pdf = FPDF()
+    pdf.set_auto_page_break(auto=True, margin=15)
+    pdf.add_page()
+    pdf.set_font('Helvetica', size=11)
+    for line in _pdf_safe(text).split('\n'):
+        pdf.multi_cell(0, 6, line, new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+    pdf.output(out_path)
+
+
+def _resume_filename_slug(text: str, fallback: str) -> str:
+    '''Filesystem-safe slug from untrusted job-board text (title/company).'''
+    slug = re.sub(r'[^A-Za-z0-9]+', '-', (text or '').strip()).strip('-')
+    return slug[:40] or fallback
+
+
+@app.route('/api/resumes/tailor', methods=['POST'])
+def api_tailor_resume():
+    '''
+    Tailor the active resume to one saved job with AI, and save the result as
+    a new file under "all resumes" (picked up by the existing resume list).
+    '''
+    payload = request.get_json(silent=True) or {}
+    job_id = str(payload.get('id') or '').strip()
+    if not job_id:
+        return jsonify({"error": "id required (a saved job's id)"}), 400
+
+    job = next((r for r in _read_saved() if r.get('id') == job_id), None)
+    if job is None:
+        return jsonify({"error": "saved job not found"}), 404
+    description = (job.get('description') or '').strip()
+    if not description:
+        return jsonify({"error": "this saved job has no description to tailor against"}), 400
+
+    source_rel = _effective_config().get("questions", {}).get("default_resume_path", "")
+    source_path = os.path.join(ROOT, source_rel) if source_rel else ""
+    if not source_rel or not os.path.isfile(source_path):
+        return jsonify({"error": "no active resume set - pick one in the Games tab first"}), 400
+
+    try:
+        resume_text = _read_resume_text(source_path)
+    except Exception as err:
+        return jsonify({"error": f"could not read the active resume: {err}"}), 500
+    if not resume_text.strip():
+        return jsonify({"error": "the active resume has no extractable text (is it a scanned image?)"}), 400
+
+    from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeout
+    from modules.ai import connections
+
+    client = connections.create_ai_client()
+    if client is None:
+        return jsonify({"error": "AI is off - flip 'Use AI' in the Account tab first"}), 400
+
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        try:
+            tailored = pool.submit(
+                connections.tailor_resume, client, resume_text,
+                job.get('title', ''), job.get('company', ''), description,
+            ).result(timeout=90)
+        except FutureTimeout:
+            return jsonify({"error": "tailoring timed out - try again"}), 504
+        except Exception as err:
+            return jsonify({"error": f"tailoring failed: {str(err)[:250]}"}), 500
+
+    if not tailored.strip():
+        return jsonify({"error": "AI returned an empty resume - try again"}), 500
+
+    company_slug = _resume_filename_slug(job.get('company', ''), 'Company')
+    title_slug = _resume_filename_slug(job.get('title', ''), 'Role')
+    stamp = datetime.now().strftime('%Y%m%d-%H%M%S')
+    filename = f"{company_slug}-{title_slug}-{stamp}.pdf"
+    out_path = os.path.join(ROOT, _RESUME_DIR, filename)
+
+    try:
+        os.makedirs(os.path.dirname(out_path), exist_ok=True)
+        _write_tailored_pdf(tailored, out_path)
+    except Exception as err:
+        return jsonify({"error": f"could not save the tailored resume: {err}"}), 500
+
+    return jsonify({"resume_path": f"{_RESUME_DIR}/{filename}"})
 
 
 _LAZII_FALLBACKS = [

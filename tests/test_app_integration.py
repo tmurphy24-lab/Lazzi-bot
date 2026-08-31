@@ -45,6 +45,36 @@ def test_config_save_coerces_and_roundtrips(client, tmp_path, monkeypatch):
     assert got["secrets"]["use_AI"] is True
 
 
+def test_saving_secrets_takes_effect_for_the_same_running_process(client, tmp_path, monkeypatch):
+    '''
+    Regression: config.secrets is imported exactly once by app.py's
+    _load_defaults() at startup, and Python caches that import - so anything
+    reading `config.secrets.use_AI` etc. directly (Lazii-Bot chat, AI resume
+    tailoring) used to see startup's values forever, never whatever the
+    Account tab (or Lazii-Bot's own settings actions) saved afterward, without
+    a full server restart. _apply_config_patch() must reload config.secrets
+    right after every successful save of that section.
+    '''
+    import app
+    import config._overrides as overrides
+    import config.secrets as cfg
+    cfg_path = str(tmp_path / "user_config.json")
+    monkeypatch.setattr(app, "USER_CONFIG_PATH", cfg_path)
+    monkeypatch.setattr(overrides, "USER_CONFIG_PATH", cfg_path)
+
+    # config.secrets is a process-wide singleton that this same fix reloads in
+    # place, so an earlier test's saved value can still be sitting in it -
+    # force a known starting point rather than assuming the module's default.
+    monkeypatch.setattr(cfg, "use_AI", False)
+    monkeypatch.setattr(cfg, "ai_provider", "openai")
+
+    resp = client.post("/api/config", json={"secrets": {"use_AI": "true", "ai_provider": "minimax"}})
+    assert resp.status_code == 200
+
+    assert cfg.use_AI is True
+    assert cfg.ai_provider == "minimax"
+
+
 def test_config_save_rejects_unknown_key(client, tmp_path, monkeypatch):
     import app
     import config._overrides as overrides
