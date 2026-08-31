@@ -58,6 +58,10 @@ AI_MODELS = {
         "gemini-2.5-flash", "gemini-2.5-pro", "gemini-2.0-flash",
         "gemini-1.5-flash", "gemini-1.5-pro",
     ],
+    "minimax": [
+        "MiniMax-M3", "MiniMax-M2.7", "MiniMax-M2.7-highspeed",
+        "MiniMax-M2.5", "MiniMax-M2.1", "MiniMax-M2",
+    ],
 }
 
 
@@ -98,8 +102,8 @@ SCHEMA = [
             _f("Account", "secrets", "use_AI", "Use AI", "bool",
                "Master switch for AI help (tailoring answers, resumes and cover letters). Turn this on only if you have a paid API key or a local AI model running. While it's off, all the AI settings below are disabled."),
             _f("Account", "secrets", "ai_provider", "AI provider", "select",
-               "Which AI service to use. Pick 'openai' for OpenAI or any OpenAI-compatible service (including local ones like Ollama or LM Studio), 'deepseek' for DeepSeek, or 'gemini' for Google Gemini.",
-               options=["openai", "deepseek", "gemini"], ai=True),
+               "Which AI service to use. Pick 'openai' for OpenAI or any OpenAI-compatible service (including local ones like Ollama or LM Studio), 'deepseek' for DeepSeek, 'gemini' for Google Gemini, or 'minimax' for MiniMax's native Anthropic-format API.",
+               options=["openai", "deepseek", "gemini", "minimax"], ai=True),
             _f("Account", "secrets", "llm_model", "AI model", "text",
                "The model to use. Pick a suggestion from the list or type any model name your provider supports.",
                ai=True, models_by_provider=AI_MODELS),
@@ -108,7 +112,7 @@ SCHEMA = [
                ai=True),
             # --- advanced AI plumbing ---
             _f("Account", "secrets", "llm_api_url", "AI API URL", "text",
-               "The address of your AI service. Examples: https://api.openai.com/v1/ , http://localhost:1234/v1/ , https://api.deepseek.com . Keep the trailing slash. You may not need this for Gemini.",
+               "The address of your AI service. Examples: https://api.openai.com/v1/ , http://localhost:1234/v1/ , https://api.deepseek.com , https://api.minimax.io/anthropic/v1 for MiniMax. Keep the trailing slash where shown. You may not need this for Gemini.",
                ai=True, advanced=True),
             _f("Account", "settings", "showAiErrorAlerts", "Show AI error alerts", "bool",
                "Pop up an alert if there's a problem connecting to the AI service.",

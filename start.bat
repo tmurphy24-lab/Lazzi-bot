@@ -56,6 +56,14 @@ if not exist ".venv\.deps_installed" (
         pause
         exit /b 1
     )
+    REM python-jobspy pins pandas<3.0.0, which has no Python 3.14 wheel; --no-deps
+    REM keeps it from dragging in that broken pin (see requirements.txt).
+    "%VENV_PY%" -m pip install --quiet --no-deps python-jobspy
+    if errorlevel 1 (
+        echo Could not install the job-scout package.
+        pause
+        exit /b 1
+    )
     echo done> ".venv\.deps_installed"
 )
 

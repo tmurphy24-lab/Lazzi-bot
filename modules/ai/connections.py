@@ -68,10 +68,14 @@ def _resolve_provider(name: Optional[str]) -> str:
     Map the user-facing provider name to a LangChain model provider.
     Everything OpenAI-compatible (OpenAI, Ollama, LM Studio, DeepSeek, vLLM, ...)
     runs through the "openai" provider by pointing the URL at the right server.
+    Anthropic-Messages-format services (real Anthropic, MiniMax's native API)
+    run through "anthropic" the same way.
     '''
     n = (name or "openai").strip().lower()
     if n in ("gemini", "google", "google_genai", "google-genai"):
         return "google_genai"
+    if n in ("anthropic", "claude", "minimax"):
+        return "anthropic"
     return "openai"
 
 
@@ -129,6 +133,12 @@ def create_ai_client() -> Optional[AIClient]:
             if api_key and api_key.lower() != "not-needed":
                 os.environ.setdefault("GOOGLE_API_KEY", api_key)
             model = init_chat_model(model_name, model_provider="google_genai", **kwargs)
+        elif provider == "anthropic":
+            base_url = (getattr(cfg, "llm_api_url", "") or "").strip()
+            kwargs["api_key"] = api_key or "not-needed"
+            if base_url:
+                kwargs["base_url"] = base_url
+            model = init_chat_model(model_name, model_provider="anthropic", **kwargs)
         else:
             base_url = (getattr(cfg, "llm_api_url", "") or "").strip()
             # OpenAI-compatible servers accept any key; use a placeholder when none is given.

@@ -19,10 +19,44 @@ tracks every application, and answers to chat.
 | Profile  | Name, phone, address, equal-opportunity answers |
 | Search   | Fine-grained search filters and blacklists |
 | Games    | Game-card presets + quick settings for the hunt |
-| Scout    | Multi-board job discovery (Indeed, ZipRecruiter, Glassdoor, ...) via JobSpy |
+| Scout    | Multi-board job discovery (Indeed, LinkedIn, ZipRecruiter, Glassdoor, Google) via JobSpy |
+| Pipeline | Saved-jobs board: Saved / Shortlist / Applied / Interview / Offer / Closed |
 | Stats    | Application analytics: daily pace, totals, top companies |
 | Run      | Start/stop the bot, live log, applied-jobs table |
 | History  | Full applied-jobs page at /history |
+
+## Two engines: scraper vs auto-apply
+
+They are separate, and only one of them can apply for you.
+
+- **Scraper (built in).** The `jobspy` package, called from `_scout_jobs()` in
+  `app.py`, powers the Scout tab. It reads Indeed, LinkedIn, ZipRecruiter,
+  Glassdoor, Google Jobs, Bayt and Naukri with no login. Each board is scraped
+  on its own request, so one board failing does not lose the others, and
+  `/api/scout` returns a per-board report explaining any empty result.
+  Reality check: Indeed and LinkedIn answer reliably; ZipRecruiter frequently
+  returns HTTP 403 to scrapers and Glassdoor rejects a country-sized location
+  (give it a city).
+- **Auto-apply bot.** `runAiBot.py` drives a real Chrome/Edge session through
+  **LinkedIn Easy Apply only**. No other board has a hands-off apply flow, so
+  jobs saved from Indeed or ZipRecruiter are opened and applied to by hand -
+  the Pipeline board is what keeps track of where each one stands.
+
+## Saved jobs and the pipeline
+
+Hitting **Save** on a Scout row (or **Save all**) posts to `/api/saved`, which
+stores the job in `saved_jobs.json` at the project root (gitignored, non-secret,
+local only). Duplicates are skipped by job URL, falling back to
+title + company + location when a board gives no URL.
+
+| Endpoint | Method | Does |
+|----------|--------|------|
+| `/api/saved` | GET | all saved jobs + per-stage counts |
+| `/api/saved` | POST | save one job or `{"jobs": [...]}` |
+| `/api/saved` | PATCH | `{"id", "stage"}` and/or `{"notes"}` |
+| `/api/saved` | DELETE | `{"id"}` |
+
+Stages: `saved`, `shortlist`, `applied`, `interview`, `offer`, `closed`.
 
 ## Lazii-Bot chat
 
@@ -32,6 +66,8 @@ Bottom-right bubble on every page. With AI enabled (Account tab) he can:
 - Switch the active resume ("switch to my resume X")
 - Start/stop/status the hunt ("start hunting", "stop", "how's it going?")
 - Refuses to touch credentials - those live in Account/env vars only
+- Read the pipeline ("what's on my board?") and move a saved job to a new
+  stage ("mark the Kestrel one as interviewing")
 
 ## Scheduled agent
 
@@ -46,6 +82,31 @@ Reads credentials from env vars or a project-root `.env` (see
 `.env.example`; `.env` is gitignored). Headless mode suppresses every
 blocking popup (sponsor alert, pause dialogs, log-file alerts).
 
+## AI providers
+
+`ai_provider` (Account tab, or `JOB_BOT_AI_PROVIDER`) accepts:
+
+| Provider | Wire format | Notes |
+|---|---|---|
+| `openai` | OpenAI Chat Completions | Also covers any OpenAI-compatible server: Ollama, LM Studio, vLLM. Point `llm_api_url` at it. |
+| `deepseek` | OpenAI Chat Completions | Runs through the same `openai` code path. |
+| `gemini` | Google Generative AI | `llm_api_url` is ignored. |
+| `minimax` | Anthropic Messages | MiniMax's native API. `llm_api_url` = `https://api.minimax.io/anthropic` - **no trailing `/v1`**: the `anthropic` SDK appends `/v1/messages` itself, so a URL that already ends in `/v1` (as MiniMax's own docs write it) 404s. Verified live 2026-08-31 with `MiniMax-M2.7`. |
+
+`minimax`/`anthropic`/`claude` all resolve to the same `anthropic` LangChain
+provider in `modules/ai/connections.py::_resolve_provider()` - any other
+Anthropic-Messages-format service works the same way, just change
+`llm_api_url`. Needs `langchain-anthropic` (in requirements.txt).
+
+## Security
+
+The panel binds to 127.0.0.1, but that alone never protected it: any page in
+your browser can also reach 127.0.0.1. `GET /api/config` returns the LinkedIn
+password and LLM key, so the API refuses anything a browser marks as
+cross-site (`Sec-Fetch-Site`) and anything whose `Host` is not loopback (DNS
+rebinding). There is no CORS - the panel is same-origin and never needed it.
+Pinned by `tests/test_app_security.py`; do not add `flask-cors` back.
+
 ## Secrets policy
 
 No real secrets in files. Use user-level env vars (`setx LINKEDIN_USERNAME ...`)
@@ -54,6 +115,7 @@ holds non-secret settings only (written by the control panel).
 
 ## Data files
 
+- `saved_jobs.json` - the Pipeline board (gitignored)
 - `all excels/all_applied_applications_history.csv` - every application
 - `all excels/all_failed_applications_history.csv` - failures
 - `logs/` - run logs (`scheduled_run_<date>.log` for scheduled runs)
@@ -63,7 +125,14 @@ holds non-secret settings only (written by the control panel).
 - venv at `.venv` (Python 3.14). Tests: `.venv\Scripts\python -m pytest tests/`
   (add `--ignore=tests/test_ai_connections.py` if logs/log.txt is locked).
 - New endpoints in `app.py`: `/api/chat`, `/api/stats`, `/api/resumes`,
-  `/api/scout`.
+  `/api/scout`, `/api/saved`, `/favicon.svg`.
+- Branding: `static/couch_icon.svg` is the app mark (served at `/favicon.svg`
+  and shown in the header); `couch.ico` is the same art for the desktop
+  shortcut, generated from `static/couch_icon.png`.
+- The panel UI is one dark design system - tokens at the top of
+  `templates/control_panel.html`, mirrored in `templates/index.html` and
+  `static/lazii_overlay.js`. Flask caches Jinja templates with debug off, so
+  restart the server after editing a template.
 - JobSpy installed with `--no-deps` + modern numpy/pandas (Python 3.14 has no
   numpy 1.26 wheels); verified working.
 

@@ -38,6 +38,9 @@ if [ ! -f ".venv/.deps_installed" ]; then
     echo "Installing required packages (one time only)..."
     "$VENV_PY" -m pip install --quiet --upgrade pip
     "$VENV_PY" -m pip install --quiet -r requirements.txt || { echo "Could not install required packages."; exit 1; }
+    # python-jobspy pins pandas<3.0.0, which has no Python 3.14 wheel; --no-deps
+    # keeps it from dragging in that broken pin (see requirements.txt).
+    "$VENV_PY" -m pip install --quiet --no-deps python-jobspy || { echo "Could not install the job-scout package."; exit 1; }
     touch ".venv/.deps_installed"
 fi
 

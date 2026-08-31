@@ -36,16 +36,19 @@ use_AI = os.environ.get("JOB_BOT_USE_AI", "False").strip().lower() in ("true", "
 
 # Which AI service to use. The tool reaches all of them through LangChain, so this
 # one setting is usually all you change:
-#   "openai" - OpenAI, or ANY OpenAI-compatible server (Ollama, LM Studio, vLLM,
-#              DeepSeek, ...). Point llm_api_url at that server.
-#   "gemini" - Google Gemini (uses your Google API key; llm_api_url is ignored).
+#   "openai"  - OpenAI, or ANY OpenAI-compatible server (Ollama, LM Studio, vLLM,
+#               DeepSeek, ...). Point llm_api_url at that server.
+#   "gemini"  - Google Gemini (uses your Google API key; llm_api_url is ignored).
+#   "minimax" - MiniMax's native API (Anthropic Messages format). Point
+#               llm_api_url at https://api.minimax.io/anthropic/v1
 # ("deepseek" also works and behaves like "openai".)
-ai_provider = os.environ.get("JOB_BOT_AI_PROVIDER", "openai")        # "openai", "gemini", or "deepseek"
+ai_provider = os.environ.get("JOB_BOT_AI_PROVIDER", "openai")        # "openai", "gemini", "deepseek", or "minimax"
 
 # The model name to use. Type whatever your provider offers, for example:
 #   OpenAI:  "gpt-4o-mini", "gpt-4o", "gpt-5-mini"
 #   Local:   "llama-3.2-3b-instruct", "qwen2.5:latest"
 #   Gemini:  "gemini-2.5-flash", "gemini-2.5-pro"
+#   MiniMax: "MiniMax-M2.7", "MiniMax-M3"
 llm_model = os.environ.get("JOB_BOT_LLM_MODEL", "gpt-4o-mini")
 
 # Your API key. For local servers (Ollama / LM Studio) any placeholder is fine, so

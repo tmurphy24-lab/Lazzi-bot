@@ -20,3 +20,9 @@ user_config.json
 .bot_run.log
 .bot_run.pid
 .edge-profile
+# Local saved-jobs board (Scout pipeline)
+saved_jobs.json
+saved_jobs.json.tmp
+
+# Self-improvement logs (local notes, not part of the app)
+.learnings/

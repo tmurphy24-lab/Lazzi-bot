@@ -10,62 +10,77 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>The Couch - Applied Jobs History</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <meta name="theme-color" content="#0a0e16">
     <style>
+        /* The Couch palette - same tokens as the control panel. */
         :root {
-            --bg: #f4f6f9;
-            --card: #ffffff;
-            --ink: #1f2733;
-            --muted: #6b7684;
-            --line: #dce1e8;
-            --brand: #2563eb;
-            --brand-dark: #1d4ed8;
-            --ok: #16a34a;
-            --danger: #dc2626;
-            --thead-bg: #f1f4f8;
-            --row-alt: #fafbfc;
-            --shadow: 0 1px 3px rgba(16,24,40,.08), 0 1px 2px rgba(16,24,40,.06);
-        }
-        @media (prefers-color-scheme: dark) {
-            :root {
-                --bg: #0f172a;
-                --card: #1a2436;
-                --ink: #e5e9f0;
-                --muted: #93a0b4;
-                --line: #2c3a52;
-                --brand: #5b8def;
-                --brand-dark: #7fa5f2;
-                --ok: #34d399;
-                --danger: #f87171;
-                --thead-bg: #202c42;
-                --row-alt: #17202f;
-                --shadow: 0 1px 3px rgba(0,0,0,.35), 0 1px 2px rgba(0,0,0,.3);
-            }
+            --bg: #0a0e16;
+            --card: #161f2e;
+            --card-2: #1c2637;
+            --card-3: #232f44;
+            --ink: #eef2f8;
+            --ink-2: #c3cede;
+            --muted: #8595ad;
+            --faint: #5d6b83;
+            --line: #26324a;
+            --line-2: #33415e;
+            --brand: #ff9640;
+            --brand-2: #ffb457;
+            --grad-brand: linear-gradient(135deg, #ffb457, #ff7a3d);
+            --ok: #48e0a0;
+            --danger: #ff7a7a;
+            --thead-bg: #232f44;
+            --row-alt: rgba(255,255,255,.018);
+            --shadow: 0 1px 2px rgba(0,0,0,.35), 0 10px 30px -14px rgba(0,0,0,.7);
         }
         * { box-sizing: border-box; }
         html { -webkit-text-size-adjust: 100%; overflow-x: hidden; }
         body {
             margin: 0;
             overflow-x: hidden;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            font-family: "Segoe UI Variable Display", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             background: var(--bg);
             color: var(--ink);
-            line-height: 1.5;
+            line-height: 1.55;
+            background-image:
+                radial-gradient(900px 460px at 12% -8%, rgba(255,150,64,.16), transparent 62%),
+                radial-gradient(760px 420px at 92% 4%, rgba(124,92,255,.16), transparent 60%);
+            background-attachment: fixed;
+            min-height: 100vh;
         }
         header {
-            background: var(--card);
+            background: linear-gradient(180deg, rgba(22,31,46,.92), rgba(10,14,22,.55));
             border-bottom: 1px solid var(--line);
-            padding: 20px 24px;
+            padding: 22px 24px 20px;
+            backdrop-filter: blur(10px);
         }
-        header h1 { margin: 0 0 4px; font-size: 20px; }
-        header p { margin: 0; color: var(--muted); font-size: 14px; }
+        .brandline { display: flex; align-items: center; gap: 14px; }
+        .brandmark {
+            width: 50px; height: 50px; flex: none; border-radius: 15px;
+            box-shadow: 0 0 0 1px rgba(255,150,64,.35), 0 10px 30px -8px rgba(255,122,61,.45);
+        }
+        header h1 {
+            margin: 0; font-size: 24px; font-weight: 800; letter-spacing: -.5px;
+            background: linear-gradient(100deg, #fff 8%, var(--brand-2) 55%, #b39dff 96%);
+            -webkit-background-clip: text; background-clip: text; color: transparent;
+        }
+        header p { margin: 2px 0 0; color: var(--muted); font-size: 13.5px; }
+        .backlink {
+            display: inline-flex; align-items: center; gap: 6px; margin-top: 12px;
+            font-size: 12.5px; font-weight: 700; color: var(--brand-2); text-decoration: none;
+            background: var(--card-2); border: 1px solid var(--line-2);
+            border-radius: 99px; padding: 6px 14px; transition: border-color .15s, background .15s;
+        }
+        .backlink:hover { border-color: var(--brand); background: var(--card-3); }
         .wrap { width: 100%; max-width: 1100px; margin: 0 auto; padding: 0 16px; }
         main.wrap { padding: 24px 16px 40px; }
         .card {
-            background: var(--card);
+            background: linear-gradient(180deg, var(--card), var(--card-2));
             border: 1px solid var(--line);
-            border-radius: 10px;
+            border-radius: 20px;
             box-shadow: var(--shadow);
-            padding: 16px;
+            padding: 18px;
         }
         .table-scroll {
             overflow-x: auto;
@@ -78,8 +93,9 @@
             font-size: 13.5px;
         }
         table.history th, table.history td {
-            border: 1px solid var(--line);
-            padding: 9px 11px;
+            border-bottom: 1px solid var(--line);
+            padding: 10px 12px;
+            color: var(--ink-2);
             text-align: left;
             vertical-align: top;
             white-space: nowrap;
@@ -87,11 +103,19 @@
         table.history td.wraps { white-space: normal; }
         table.history th {
             background: var(--thead-bg);
-            font-weight: 600;
+            font-weight: 700;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: .5px;
+            color: #fff;
             user-select: none;
         }
+        table.history { border-radius: 14px; overflow: hidden; border: 1px solid var(--line); }
+        table.history tbody tr { transition: background .13s; }
+        table.history tbody tr:hover { background: rgba(255,150,64,.07); }
+        table.history tbody tr:last-child td { border-bottom: none; }
         table.history tbody tr:nth-child(even) { background: var(--row-alt); }
-        table.history a { color: var(--brand); text-decoration: none; }
+        table.history a { color: var(--brand-2); text-decoration: none; font-weight: 600; }
         table.history a:hover { text-decoration: underline; }
         .sort-toggle {
             background: none;
@@ -105,9 +129,10 @@
             align-items: center;
             gap: 5px;
         }
-        .sort-toggle:hover { color: var(--brand); }
+        .sort-toggle:hover { color: var(--brand-2); }
         .sort-toggle .arrow { font-size: 11px; color: var(--muted); }
-        .sort-toggle:hover .arrow { color: var(--brand); }
+        .sort-toggle { text-transform: uppercase; letter-spacing: .5px; font-size: 12px; }
+        .sort-toggle:hover .arrow { color: var(--brand-2); }
         .tick {
             color: var(--ok);
             font-weight: 700;
@@ -138,8 +163,14 @@
 <body>
     <header>
         <div class="wrap">
-            <h1>The Couch - Applied Jobs</h1>
-            <p>Every job Lazii-Bot has applied to (or queued for you to apply to), in one place.</p>
+            <div class="brandline">
+                <img class="brandmark" src="/favicon.svg" alt="" width="50" height="50">
+                <div>
+                    <h1>Applied Jobs</h1>
+                    <p>Every job Lazii-Bot has applied to (or queued for you to apply to), in one place.</p>
+                </div>
+            </div>
+            <a class="backlink" href="/">&#8592; Back to the command center</a>
         </div>
     </header>
 
@@ -355,11 +386,18 @@
 
             fetch('/applied-jobs')
                 .then(function (resp) {
-                    if (!resp.ok) throw new Error('Server responded with ' + resp.status);
-                    return resp.json();
+                    return resp.json().then(function (body) {
+                        return { ok: resp.ok, status: resp.status, body: body };
+                    });
                 })
-                .then(function (data) {
-                    jobs = Array.isArray(data) ? data : [];
+                .then(function (res) {
+                    if (!res.ok || !Array.isArray(res.body)) {
+                        // The server says "no history yet" once there have been
+                        // no runs - that is a quiet empty state, not a failure.
+                        showPlaceholder('No applications yet. They show up here after Lazii-Bot\'s first run.', false);
+                        return;
+                    }
+                    jobs = res.body;
                     render();
                 })
                 .catch(function (err) {

@@ -63,6 +63,10 @@ class _StructuredModel(_StubModel):
     ("ollama", "openai"),
     (None, "openai"),
     ("OpenAI", "openai"),     # case-insensitive
+    ("minimax", "anthropic"), # MiniMax's native API speaks Anthropic Messages format
+    ("anthropic", "anthropic"),
+    ("claude", "anthropic"),
+    ("MiniMax", "anthropic"),  # case-insensitive
 ])
 def test_resolve_provider(name, expected):
     assert C._resolve_provider(name) == expected
@@ -158,6 +162,32 @@ def test_live_openai_answer(monkeypatch):
     monkeypatch.setattr(cfg, "llm_model", os.getenv("OPENAI_TEST_MODEL", "gpt-4o-mini"))
     monkeypatch.setattr(cfg, "llm_api_key", os.environ["OPENAI_API_KEY"])
     monkeypatch.setattr(cfg, "llm_api_url", "https://api.openai.com/v1/")
+
+    client = C.create_ai_client()
+    assert client is not None
+    answer = C.answer_question(client, "Reply with exactly the word: pong",
+                             question_type="text")
+    assert isinstance(answer, str) and answer.strip() != ""
+
+
+@pytest.mark.live
+@pytest.mark.skipif(not os.getenv("MINIMAX_API_KEY"),
+                    reason="set MINIMAX_API_KEY to run the real MiniMax smoke test")
+def test_live_minimax_answer(monkeypatch):
+    '''
+    Real end-to-end check of the LangChain -> anthropic provider -> MiniMax's
+    native API path. Skipped by default.
+
+    base_url is the host WITHOUT a trailing /v1: the `anthropic` SDK appends
+    "/v1/messages" itself, so a base_url that already ends in /v1 (as MiniMax's
+    own docs write it) doubles up into a 404. Verified live 2026-08-31.
+    '''
+    import config.secrets as cfg
+    monkeypatch.setattr(cfg, "use_AI", True)
+    monkeypatch.setattr(cfg, "ai_provider", "minimax")
+    monkeypatch.setattr(cfg, "llm_model", os.getenv("MINIMAX_TEST_MODEL", "MiniMax-M2.7"))
+    monkeypatch.setattr(cfg, "llm_api_key", os.environ["MINIMAX_API_KEY"])
+    monkeypatch.setattr(cfg, "llm_api_url", "https://api.minimax.io/anthropic")
 
     client = C.create_ai_client()
     assert client is not None

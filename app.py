@@ -19,8 +19,7 @@ SECURITY: this app handles LinkedIn credentials, so it binds to 127.0.0.1 only
 (never 0.0.0.0) and runs with debug OFF. Do not change these.
 '''
 
-from flask import Flask, request, jsonify, render_template
-from flask_cors import CORS
+from flask import Flask, request, jsonify, render_template, send_from_directory
 import csv
 import re
 from datetime import datetime, timedelta
@@ -37,7 +36,6 @@ import config_schema
 from config import _overrides
 
 app = Flask(__name__)
-CORS(app)
 
 # Project root is the folder this file lives in.
 ROOT = os.path.dirname(os.path.abspath(__file__))
@@ -45,7 +43,71 @@ USER_CONFIG_PATH = _overrides.USER_CONFIG_PATH
 LOG_PATH = os.path.join(ROOT, ".bot_run.log")
 PID_PATH = os.path.join(ROOT, ".bot_run.pid")
 
-PATH = 'all excels/'
+# History CSVs live next to this file. Anchored to ROOT rather than left
+# relative: the desktop launcher imports this module and serves in-process, so
+# the working directory is whatever launched it, and a relative path silently
+# produced an empty history and empty stats.
+PATH = os.path.join(ROOT, 'all excels')
+
+
+# ===========================================================================
+# SECURITY: this app serves LinkedIn credentials and can start a browser
+# automation subprocess, so the API must only ever answer the panel running on
+# this machine.
+#
+# Two distinct attacks are blocked here:
+#   * Cross-site reads/writes. A page on any other origin used to be able to
+#     fetch /api/config and read the password, because CORS(app) reflected
+#     whatever Origin was sent. Browsers label such requests with
+#     Sec-Fetch-Site, and we refuse anything that is not same-origin.
+#   * DNS rebinding. An attacker-controlled hostname can be pointed at
+#     127.0.0.1, which makes the browser consider the request same-origin. The
+#     Host header still carries the attacker's name, so we require Host to be a
+#     loopback name.
+#
+# Requests with no Sec-Fetch-Site at all (curl, the test client, older
+# browsers) are allowed through: the listener is already bound to 127.0.0.1, so
+# they can only come from a local process, which has far easier ways in.
+# ===========================================================================
+_LOOPBACK_HOSTS = ('127.0.0.1', 'localhost', '[::1]', '::1')
+
+
+def _host_is_loopback(host_header: str) -> bool:
+    """True if the Host header names this machine (port ignored)."""
+    host = (host_header or '').strip().lower()
+    if not host:
+        return False
+    if host.startswith('['):  # IPv6 literal, e.g. [::1]:5000
+        host = host.split(']')[0] + ']'
+    else:
+        host = host.split(':')[0]
+    return host in _LOOPBACK_HOSTS
+
+
+@app.before_request
+def _block_cross_site_requests():
+    """Refuse anything a browser tells us came from another site."""
+    if not _host_is_loopback(request.headers.get('Host', '')):
+        return jsonify({"error": "This panel only answers on localhost."}), 403
+    # 'none' is a user-initiated load - typing the URL, a bookmark, or the
+    # desktop launcher opening the panel - and must stay allowed.
+    fetch_site = request.headers.get('Sec-Fetch-Site', '')
+    if fetch_site not in ('', 'none', 'same-origin'):
+        return jsonify({"error": "Cross-site requests are not allowed."}), 403
+    return None
+
+
+@app.after_request
+def _no_store(response):
+    """
+    Never let a proxy or the browser cache an API response - they carry
+    settings and, on /api/config, credentials.
+    """
+    if request.path.startswith('/api/') or request.path == '/applied-jobs':
+        response.headers['Cache-Control'] = 'no-store'
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['Referrer-Policy'] = 'same-origin'
+    return response
 
 
 # ===========================================================================
@@ -223,6 +285,14 @@ def _terminate(proc) -> None:
 def home():
     """Serve the control panel single-page app."""
     return render_template('control_panel.html')
+
+
+@app.route('/favicon.ico')
+@app.route('/favicon.svg')
+def favicon():
+    '''Brand mark for the browser tab and the desktop-window taskbar icon.'''
+    return send_from_directory(os.path.join(ROOT, 'static'), 'couch_icon.svg',
+                               mimetype='image/svg+xml')
 
 
 @app.route('/history')
@@ -503,6 +573,16 @@ def _lazii_respond(message: str) -> dict:
     week_ago = (datetime.now() - timedelta(days=7)).strftime("%Y-%m-%d")
     last7 = sum(v for k, v in stats["day_counts"].items() if k >= week_ago)
     hunt_running = _bot_running()
+    saved_rows = _read_saved()
+    saved_counts = {stage: 0 for stage in SAVED_STAGES}
+    for row in saved_rows:
+        stage = row.get('stage', 'saved')
+        saved_counts[stage] = saved_counts.get(stage, 0) + 1
+    saved_brief = [
+        {'id': r.get('id'), 'title': r.get('title'), 'company': r.get('company'),
+         'site': r.get('site'), 'stage': r.get('stage')}
+        for r in saved_rows[:40]
+    ]
 
     system = (
         "You are Lazii-Bot, a chubby, scruffy, playful couch-potato robot who hunts jobs for "
@@ -520,6 +600,8 @@ def _lazii_respond(message: str) -> dict:
         "the RESUMES paths exactly.\n"
         "4. SPECIAL ACTIONS that bypass settings: section 'run' with key 'start' or 'stop' starts "
         "or stops the hunt; key 'status' asks for the current run state. Use only when asked.\n"
+        "4b. To move a saved job along the pipeline, use section 'pipeline', key = the job's id "
+        "from SAVED JOBS, value = one of " + json.dumps(list(SAVED_STAGES)) + ".\n"
         "5. Only send actions the user actually asked for. If you did not change anything, send an "
         "empty actions array.\n"
         "6. If a request is vague, make a sensible change anyway and say what you did.\n\n"
@@ -534,6 +616,9 @@ def _lazii_respond(message: str) -> dict:
         + ", failed " + str(stats["total_failed"])
         + ", last 7 days " + str(last7)
         + ", top companies " + json.dumps(stats["top_companies"][:3]) + ".\n"
+        + "SAVED JOBS BOARD: " + str(len(saved_rows)) + " kept, by stage "
+        + json.dumps(saved_counts) + ".\n"
+        + "SAVED JOBS (up to 40):\n" + json.dumps(saved_brief, ensure_ascii=False) + "\n"
     )
 
     try:
@@ -582,6 +667,26 @@ def _lazii_respond(message: str) -> dict:
             elif cmd == "status":
                 events.append("hunt status: " + ("running" if _bot_running() else "stopped"))
             continue
+        if section == "pipeline":
+            stage = str(action.get("value") or "").strip().lower()
+            if stage not in SAVED_STAGES:
+                errors.append("unknown pipeline stage: " + stage)
+                continue
+            moved = False
+            with _saved_lock:
+                rows = _read_saved()
+                for row in rows:
+                    if row.get('id') == key:
+                        row['stage'] = stage
+                        _write_saved(rows)
+                        moved = True
+                        break
+            if moved:
+                applied.append({"section": "pipeline", "key": key, "value": stage})
+                events.append("moved a saved job to " + stage)
+            else:
+                errors.append("no saved job with that id")
+            continue
         if not section or not key:
             continue
         payload.setdefault(section, {})[key] = action.get("value")
@@ -616,35 +721,59 @@ def api_chat():
 # ===========================================================================
 # Scout: multi-board job discovery via JobSpy (Indeed, Glassdoor, ZipRecruiter)
 # ===========================================================================
-_SCOUT_BOARDS = {"linkedin", "indeed", "glassdoor", "ziprecruiter", "google", "bayt", "naukri"}
+# What the panel calls a board -> what JobSpy's Site enum calls it. JobSpy
+# spells ZipRecruiter "zip_recruiter"; passing "ziprecruiter" raises KeyError
+# and used to kill the whole scrape, taking the other boards down with it.
+_SCOUT_BOARDS = {
+    "linkedin": "linkedin",
+    "indeed": "indeed",
+    "glassdoor": "glassdoor",
+    "ziprecruiter": "zip_recruiter",
+    "zip_recruiter": "zip_recruiter",
+    "google": "google",
+    "bayt": "bayt",
+    "naukri": "naukri",
+    "bdjobs": "bdjobs",
+}
 
 
 def _scout_jobs(titles, location, boards, hours, limit):
     '''
     Run JobSpy scrapes for up to 3 search terms and return cleaned records.
-    Raises on failure so the caller can turn it into an API error.
+
+    Each board is scraped on its own so one flaky or renamed board only loses
+    its own results instead of taking the whole scout down with it.
     '''
     import pandas as pd
     from jobspy import scrape_jobs
 
     frames = []
-    for term in [t.strip() for t in titles.split(',') if t.strip()][:3]:
-        try:
-            frames.append(scrape_jobs(
-                site_name=boards,
-                search_term=term,
-                location=location,
-                results_wanted=limit,
-                hours_old=hours,
-                country_indeed='USA',
-            ))
-        except Exception as err:  # one flaky board/term shouldn't kill the scout
-            print(f"scout: term '{term}' failed: {err}", file=sys.stderr)
+    report = {board: {'found': 0, 'error': ''} for board in boards}
+    terms = [t.strip() for t in titles.split(',') if t.strip()][:3]
+    for term in terms:
+        for board in boards:
+            try:
+                frame = scrape_jobs(
+                    site_name=[board],
+                    search_term=term,
+                    location=location,
+                    results_wanted=limit,
+                    hours_old=hours,
+                    country_indeed='USA',
+                )
+            except Exception as err:
+                report[board]['error'] = str(err)[:200]
+                print("scout: %s / '%s' failed: %s" % (board, term, err), file=sys.stderr)
+                continue
+            if frame is not None and len(frame):
+                report[board]['found'] += len(frame)
+                frames.append(frame)
+
     if not frames:
-        return []
+        return [], report
     combined = pd.concat(frames, ignore_index=True)
     combined = combined.drop_duplicates(subset=['title', 'company'])
-    return combined.head(limit * 2).to_dict(orient='records')
+    return combined.head(limit * len(boards)).to_dict(orient='records'), report
 
 
 @app.route('/api/scout', methods=['GET'])
@@ -658,8 +787,11 @@ def api_scout():
 
     titles = request.args.get('titles', '').strip()
     location = request.args.get('location', '').strip()
-    boards = [b.strip().lower() for b in request.args.get('boards', 'indeed,ziprecruiter').split(',')
-              if b.strip().lower() in _SCOUT_BOARDS]
+    boards = []
+    for raw in request.args.get('boards', 'indeed,ziprecruiter').split(','):
+        site = _SCOUT_BOARDS.get(raw.strip().lower())
+        if site and site not in boards:
+            boards.append(site)
     try:
         hours = max(1, min(int(request.args.get('hours', '72')), 336))
         limit = max(1, min(int(request.args.get('limit', '40')), 100))
@@ -674,7 +806,7 @@ def api_scout():
 
     with ThreadPoolExecutor(max_workers=1) as pool:
         try:
-            records = pool.submit(_scout_jobs, titles, location, boards, hours, limit).result(timeout=180)
+            records, report = pool.submit(_scout_jobs, titles, location, boards, hours, limit).result(timeout=300)
         except FutureTimeout:
             return jsonify({"error": "scout timed out - try fewer boards or titles"}), 504
         except Exception as err:
@@ -690,7 +822,216 @@ def api_scout():
                 v = v.isoformat()
             clean[k] = v
         jobs.append(clean)
-    return jsonify(jobs)
+
+    # Say what each board actually did. A board that returns nothing is normal
+    # (no matches), but one that 403s or rejects the location is worth showing
+    # rather than hiding behind a blanket "nothing found".
+    notes = []
+    for board, result in report.items():
+        label = board.replace('_', '')
+        if result['error']:
+            notes.append('%s: could not be reached (%s)' % (label, result['error'][:90]))
+        elif not result['found']:
+            notes.append('%s: no matches - it may be blocking scrapes, or the location needs to be a city' % label)
+    return jsonify({'jobs': jobs, 'boards': report, 'notes': notes})
+
+
+# ===========================================================================
+# Saved jobs pipeline: a local board of jobs kept from Scout (Indeed,
+# ZipRecruiter, Glassdoor, LinkedIn, Google) and moved through stages by hand.
+# Stored in saved_jobs.json at the project root - non-secret, gitignored.
+# ===========================================================================
+SAVED_PATH = os.path.join(ROOT, 'saved_jobs.json')
+SAVED_STAGES = ('saved', 'shortlist', 'applied', 'interview', 'offer', 'closed')
+_saved_lock = threading.Lock()
+
+
+def _saved_key(job) -> str:
+    """
+    Stable dedupe key: the job URL, else title+company+location.
+
+    Returns '' when a job has none of those - '|'.join(['', '', '']) is '||',
+    which is truthy and would otherwise let a body with no real job data
+    through as a valid, saveable record.
+    """
+    url = (job.get('job_url') or job.get('url') or '').strip()
+    if url:
+        return url.lower()
+    parts = [str(job.get(k) or '').strip().lower()
+             for k in ('title', 'company', 'location')]
+    return '|'.join(parts) if any(parts) else ''
+
+
+def _read_saved() -> list:
+    try:
+        with open(SAVED_PATH, 'r', encoding='utf-8') as handle:
+            data = json.load(handle)
+        return data if isinstance(data, list) else []
+    except (OSError, ValueError):
+        return []
+
+
+def _write_saved(rows) -> None:
+    tmp = SAVED_PATH + '.tmp'
+    with open(tmp, 'w', encoding='utf-8') as handle:
+        json.dump(rows, handle, indent=2)
+    os.replace(tmp, SAVED_PATH)
+
+
+def _pay_text(job) -> str:
+    """
+    Fold JobSpy's min_amount/max_amount/interval into one short string like
+    "$95k-$120k / yearly". Returns '' when a board gives no pay at all.
+    """
+    existing = job.get('salary')
+    if existing:
+        return str(existing)
+
+    def short(value):
+        try:
+            amount = float(value)
+        except (TypeError, ValueError):
+            return ''
+        if not amount or amount != amount:  # 0 or NaN
+            return ''
+        if amount >= 1000:
+            return '$%dk' % round(amount / 1000)
+        return '$%d' % round(amount)
+
+    low, high = short(job.get('min_amount')), short(job.get('max_amount'))
+    if not low and not high:
+        return ''
+    span = '%s-%s' % (low, high) if (low and high and low != high) else (low or high)
+    interval = job.get('interval')
+    return '%s / %s' % (span, interval) if interval else span
+
+
+def _clean_job(job) -> dict:
+    """Keep only the fields the board shows, all coerced to JSON-safe text."""
+    def text(value):
+        if value is None:
+            return ''
+        if isinstance(value, float) and value != value:  # NaN
+            return ''
+        return str(value)
+
+    return {
+        'title': text(job.get('title'))[:200],
+        'company': text(job.get('company'))[:160],
+        'location': text(job.get('location'))[:160],
+        'site': text(job.get('site') or job.get('source'))[:40],
+        'job_url': text(job.get('job_url') or job.get('url'))[:1000],
+        'date_posted': text(job.get('date_posted'))[:32],
+        'salary': _pay_text(job)[:80],
+        'description': text(job.get('description'))[:4000],
+    }
+
+
+def _applied_keys() -> list:
+    """
+    title|company keys for everything already in the applied-jobs history.
+
+    A posting reached through two boards has two different URLs, so this is the
+    only cross-board match available. It is deliberately fuzzy - the panel uses
+    it to *flag* a probable duplicate, never to block saving one.
+    """
+    keys = set()
+    for row in _read_history_rows(_APPLIED_CSV):
+        title = (row.get('Title') or '').strip().lower()
+        company = (row.get('Company') or '').strip().lower()
+        if title and company:
+            keys.add(title + '|' + company)
+    return sorted(keys)
+
+
+@app.route('/api/saved', methods=['GET'])
+def api_saved_list():
+    """Every saved job, newest first, with per-stage counts."""
+    rows = _read_saved()
+    counts = {stage: 0 for stage in SAVED_STAGES}
+    for row in rows:
+        stage = row.get('stage', 'saved')
+        counts[stage] = counts.get(stage, 0) + 1
+    return jsonify({'jobs': rows, 'counts': counts, 'stages': list(SAVED_STAGES),
+                    'applied_keys': _applied_keys()})
+
+
+@app.route('/api/saved', methods=['POST'])
+def api_saved_add():
+    """
+    Save one job ({...}) or many ({"jobs": [...]}). Duplicates are skipped by
+    URL (or title+company+location when a board gives no URL).
+    """
+    payload = request.get_json(silent=True) or {}
+    incoming = payload.get('jobs') if isinstance(payload, dict) else None
+    if incoming is None:
+        # An empty body/object carries no job - do not treat it as "one job
+        # with every field blank" (see test_post_with_no_job_data_is_rejected).
+        incoming = [payload] if (isinstance(payload, dict) and payload) else []
+    if not isinstance(incoming, list) or not incoming:
+        return jsonify({'error': 'no jobs supplied'}), 400
+
+    stamp = datetime.now().isoformat(timespec='seconds')
+    with _saved_lock:
+        rows = _read_saved()
+        seen = {_saved_key(r) for r in rows}
+        added = 0
+        for raw in incoming[:200]:
+            if not isinstance(raw, dict):
+                continue
+            job = _clean_job(raw)
+            key = _saved_key(job)
+            if not key or key in seen:
+                continue
+            seen.add(key)
+            job['id'] = key
+            job['stage'] = 'saved'
+            job['notes'] = ''
+            job['saved_at'] = stamp
+            rows.insert(0, job)
+            added += 1
+        if added:
+            _write_saved(rows)
+    return jsonify({'added': added, 'skipped': len(incoming) - added, 'total': len(rows)})
+
+
+@app.route('/api/saved', methods=['PATCH'])
+def api_saved_update():
+    """Move a saved job to another stage and/or set its notes."""
+    payload = request.get_json(silent=True) or {}
+    job_id = str(payload.get('id') or '').strip()
+    if not job_id:
+        return jsonify({'error': 'id required'}), 400
+    stage = payload.get('stage')
+    if stage is not None and stage not in SAVED_STAGES:
+        return jsonify({'error': 'unknown stage'}), 400
+
+    with _saved_lock:
+        rows = _read_saved()
+        for row in rows:
+            if row.get('id') == job_id:
+                if stage is not None:
+                    row['stage'] = stage
+                if 'notes' in payload:
+                    row['notes'] = str(payload.get('notes') or '')[:2000]
+                _write_saved(rows)
+                return jsonify(row)
+    return jsonify({'error': 'job not found'}), 404
+
+
+@app.route('/api/saved', methods=['DELETE'])
+def api_saved_delete():
+    """Remove a saved job from the board."""
+    job_id = str((request.get_json(silent=True) or {}).get('id') or '').strip()
+    if not job_id:
+        return jsonify({'error': 'id required'}), 400
+    with _saved_lock:
+        rows = _read_saved()
+        kept = [r for r in rows if r.get('id') != job_id]
+        if len(kept) == len(rows):
+            return jsonify({'error': 'job not found'}), 404
+        _write_saved(kept)
+    return jsonify({'removed': 1, 'total': len(kept)})
 
 
 def _bot_running():
@@ -706,6 +1047,7 @@ def _start_bot():
         if _is_running():
             return {"running": True, "pid": _bot_proc.pid,
                     "message": "The tool is already running."}
+        log_file = None
         try:
             # Truncate the log at the start of each run.
             log_file = open(LOG_PATH, "w", encoding="utf-8")
@@ -721,6 +1063,13 @@ def _start_bot():
             _bot_proc = subprocess.Popen(_bot_command(), **popen_kwargs)
         except Exception as err:
             return {"running": False, "error": str(err)}
+        finally:
+            # The child inherited its own handle; ours would just leak.
+            if log_file is not None:
+                try:
+                    log_file.close()
+                except OSError:
+                    pass
         try:
             with open(PID_PATH, "w", encoding="utf-8") as pid_file:
                 pid_file.write(str(_bot_proc.pid))
@@ -733,7 +1082,7 @@ def _stop_bot():
     '''Stop the running bot subprocess (and its children where possible).'''
     global _bot_proc
     with _bot_lock:
-        was_running = _bot_proc is not None
+        was_running = _is_running()
         if _bot_proc is not None:
             _terminate(_bot_proc)
             _bot_proc = None
