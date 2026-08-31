@@ -62,9 +62,12 @@ llm_api_key = os.environ.get("JOB_BOT_LLM_API_KEY", "not-needed")
 #   DeepSeek:  "https://api.deepseek.com/v1"
 llm_api_url = os.environ.get("JOB_BOT_LLM_API_URL", "https://api.openai.com/v1/")
 
-# Sampling temperature. Leave as None to use the model's own default (some newer
-# models only allow their default). Set a number like 0 or 0.3 to override it.
-llm_temperature = None
+# Sampling temperature. Leave blank to use the model's own default (some newer
+# models only allow their default, e.g. GPT-5, o-series). Lower (0-0.3) is more
+# consistent/deterministic - better for resume tailoring and form answers.
+# Higher (0.7-1) is more varied/creative. A blank or unparseable value falls
+# back to the model's default rather than erroring.
+llm_temperature = os.environ.get("JOB_BOT_LLM_TEMPERATURE", "")
 
 
 

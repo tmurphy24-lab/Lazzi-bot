@@ -48,3 +48,24 @@ Question:
 {}
 """
 #<
+
+
+##> Tailor a resume to a job description
+# Used with `tailor_resume_prompt.format(resume_text, job_title, company, job_description)`.
+tailor_resume_prompt = """
+You are an expert resume writer. Rewrite the resume below so it is tailored to the job posting that follows, while staying strictly truthful to the candidate's real background.
+
+Rules:
+- Do NOT invent employers, job titles, dates, degrees, or skills the candidate does not already have in the resume below.
+- Reorder and re-emphasize existing bullets and skills to match what the job asks for; tighten wording; use strong action verbs; keep it ATS-friendly (plain text, no tables or graphics).
+- You may rephrase and reprioritize, but every fact must already appear in the original resume.
+- Keep the candidate's original section structure (contact info, summary, experience, education, skills, etc.) - do not add or remove sections that weren't there.
+- Keep it roughly the same length as the original. Return ONLY the finished resume as plain text - no commentary, no markdown formatting, no explanation before or after.
+
+ORIGINAL RESUME:
+{}
+
+TARGET JOB - {} at {}:
+{}
+"""
+#<

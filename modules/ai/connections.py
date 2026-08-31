@@ -38,7 +38,7 @@ from langgraph.graph import StateGraph, START, END
 import config.secrets as cfg
 from config.settings import showAiErrorAlerts
 from modules.helpers import print_lg, critical_error_log, convert_to_json
-from modules.ai.prompts import extract_skills_prompt, ai_answer_prompt
+from modules.ai.prompts import extract_skills_prompt, ai_answer_prompt, tailor_resume_prompt
 
 try:
     from pyautogui import confirm
@@ -77,6 +77,26 @@ def _resolve_provider(name: Optional[str]) -> str:
     if n in ("anthropic", "claude", "minimax"):
         return "anthropic"
     return "openai"
+
+
+def _parse_temperature(value) -> Optional[float]:
+    '''
+    Accepts a float, an int, or a free-text field value (config_schema exposes
+    llm_temperature as text, like years_of_experience, so it can be left blank).
+    Blank or unparseable input falls back to the model's own default rather
+    than raising - a typo here shouldn't take AI down entirely.
+    '''
+    if value is None:
+        return None
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        return float(value)
+    text = str(value).strip()
+    if not text:
+        return None
+    try:
+        return float(text)
+    except ValueError:
+        return None
 
 
 def _msg_text(message) -> str:
@@ -122,7 +142,7 @@ def create_ai_client() -> Optional[AIClient]:
         provider = _resolve_provider(cfg.ai_provider)
         model_name = cfg.llm_model
         api_key = (getattr(cfg, "llm_api_key", "") or "").strip()
-        temperature = getattr(cfg, "llm_temperature", None)
+        temperature = _parse_temperature(getattr(cfg, "llm_temperature", None))
 
         kwargs = {}
         # Some newer models only accept their default temperature; leave it unset unless the user opts in.
@@ -197,6 +217,24 @@ def extract_skills(client: Optional[AIClient], job_description: str, stream: boo
         except Exception as e2:
             _ai_error_alert("Could not extract skills from the job description.", e2)
             return {"error": str(e2)}
+
+
+def tailor_resume(client: Optional[AIClient], resume_text: str, job_title: str,
+                   company: str, job_description: str) -> str:
+    '''
+    Rewrite `resume_text` to emphasize what `job_description` asks for, without
+    inventing new facts. Returns the tailored resume as plain text, or ""
+    if the AI is unavailable, empty input was given, or the call fails.
+    '''
+    if not client or not resume_text or not job_description:
+        return ""
+    prompt = tailor_resume_prompt.format(resume_text, job_title or "this role",
+                                          company or "the company", job_description)
+    try:
+        return _msg_text(client.model.invoke(prompt)).strip()
+    except Exception as e:
+        _ai_error_alert("Could not tailor the resume for this job.", e)
+        return ""
 
 
 # --------------------------------------------------------------------------- #

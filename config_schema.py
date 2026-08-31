@@ -112,7 +112,10 @@ SCHEMA = [
                ai=True),
             # --- advanced AI plumbing ---
             _f("Account", "secrets", "llm_api_url", "AI API URL", "text",
-               "The address of your AI service. Examples: https://api.openai.com/v1/ , http://localhost:1234/v1/ , https://api.deepseek.com , https://api.minimax.io/anthropic/v1 for MiniMax. Keep the trailing slash where shown. You may not need this for Gemini.",
+               "The address of your AI service. Examples: https://api.openai.com/v1/ , http://localhost:1234/v1/ , https://api.deepseek.com , https://api.minimax.io/anthropic for MiniMax (no trailing /v1 - the SDK adds it). Keep the trailing slash where shown. You may not need this for Gemini.",
+               ai=True, advanced=True),
+            _f("Account", "secrets", "llm_temperature", "AI temperature", "text",
+               "How consistent (low) or varied (high) AI answers are, 0-2. Leave blank for the model's own default (some newer models like GPT-5 or o-series only allow their default and reject any value here). Lower (0-0.3) is steadier - good for form answers and resume tailoring, where you want the same facts every time. Higher (0.7-1) is more varied wording.",
                ai=True, advanced=True),
             _f("Account", "settings", "showAiErrorAlerts", "Show AI error alerts", "bool",
                "Pop up an alert if there's a problem connecting to the AI service.",
